@@ -1,0 +1,32 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/player_area_view.gd" id="1_player_area"]
+
+[node name="VBoxContainer" type="VBoxContainer"]
+script = ExtResource("1_player_area")
+
+[node name="PlayerName" type="Label" parent="."]
+layout_mode = 2
+text = "Jugador"
+
+[node name="WellAndBoard" type="HBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="Well" type="VBoxContainer" parent="WellAndBoard"]
+layout_mode = 2
+
+[node name="WellCount" type="Label" parent="WellAndBoard/Well"]
+layout_mode = 2
+text = "Pozo: 15"
+
+[node name="WellTopSlot" type="Control" parent="WellAndBoard/Well"]
+layout_mode = 2
+custom_minimum_size = Vector2(130, 180)
+
+[node name="Board" type="HBoxContainer" parent="WellAndBoard"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Hand" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 4

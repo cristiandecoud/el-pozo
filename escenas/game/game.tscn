@@ -1,0 +1,39 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/game.gd" id="1_game"]
+
+[node name="Game" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_game")
+
+[node name="Layout" type="VBoxContainer" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_constants/separation = 8
+
+[node name="OpponentRow" type="HBoxContainer" parent="Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="CentralArea" type="HBoxContainer" parent="Layout"]
+layout_mode = 2
+
+[node name="DeckArea" type="VBoxContainer" parent="Layout/CentralArea"]
+layout_mode = 2
+
+[node name="DeckTitle" type="Label" parent="Layout/CentralArea/DeckArea"]
+layout_mode = 2
+text = "Mazo"
+
+[node name="DeckCount" type="Label" parent="Layout/CentralArea/DeckArea"]
+layout_mode = 2
+text = "..."
+
+[node name="LaddersContainer" type="HBoxContainer" parent="Layout/CentralArea"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HumanRow" type="HBoxContainer" parent="Layout"]
+layout_mode = 2
+size_flags_vertical = 3

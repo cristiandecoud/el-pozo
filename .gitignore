@@ -1,0 +1,7 @@
+# Godot 4 generated files
+.godot/
+*.import
+exports/
+
+# OS
+.DS_Store
