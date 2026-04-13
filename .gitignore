@@ -1,7 +1,14 @@
-# Godot 4 generated files
+# Godot 4 — caché del editor (binarios de importación, shaders compilados, etc.)
 .godot/
-*.import
+
+# Configuración de exportación — puede contener claves de firma
+export_presets.cfg
+
+# Binarios exportados
 exports/
 
 # OS
 .DS_Store
+
+# Claude Code
+.claude/
