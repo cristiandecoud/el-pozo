@@ -222,9 +222,7 @@ func _run_ladder_manager_tests() -> void:
 	lm4.add_ladder_slot()
 	lm4.play_card(_ace(), 0)
 	ok(lm4.can_play_on(_joker(), 0, 2),  "comodín puede jugar como 2 sobre As")
-	ok(lm4.can_play_on(_joker(), 0, 5),  "comodín con valor 5 no puede jugar sobre As")
-	# Nota: joker con valor 5 sobre As no es válido
-	ok(!lm4.can_play_on(_joker(), 0, 5), "comodín valor=5 rechazado sobre As")
+	ok(!lm4.can_play_on(_joker(), 0, 5), "comodín como 5 sobre As es inválido (la secuencia necesita 2)")
 
 	# Escalera completa A→K se descarta
 	var lm5 := LadderManager.new()
@@ -263,6 +261,10 @@ func _run_game_manager_tests() -> void:
 	var p2 := gm2.current_player()
 	p2.hand.clear()
 	p2.hand.append(_card(Card.Suit.SPADES, 5))  # solo 1 carta
+	# Deck controlado: solo 8s para que begin_turn no auto-juegue Ases del relleno
+	gm2.deck.cards.clear()
+	for _i in range(10):
+		gm2.deck.cards.append(_card(Card.Suit.CLUBS, 8))
 	gm2.begin_turn()
 	eq(p2.hand.size(), Player.MAX_HAND_SIZE, "begin_turn() rellena mano hasta 5 cartas")
 
@@ -352,17 +354,18 @@ func _run_game_manager_tests() -> void:
 	ok(!gm10.try_end_turn(0, 0), "try_end_turn sin mano retorna false")
 
 	# Señal game_won cuando el pozo se vacía
+	# Usamos Array para que el lambda capture por referencia (bool se captura por valor)
 	var gm11 := _make_controlled_gm()
 	var p11 := gm11.current_player()
-	var won_fired := false
-	gm11.game_won.connect(func(_w): won_fired = true)
+	var won_signals: Array = []
+	gm11.game_won.connect(func(w): won_signals.append(w))
 	p11.well.clear()
 	p11.well.append(_ace())  # 1 carta en pozo
 	p11.hand.clear()
 	p11.hand.append(_card(Card.Suit.CLUBS, 5))
 	var ws := _find_empty_slot(gm11)
 	gm11.try_play_card(GameManager.CardSource.WELL, 0, ws)
-	ok(won_fired, "señal game_won se emite cuando el pozo queda vacío")
+	ok(won_signals.size() > 0, "señal game_won se emite cuando el pozo queda vacío")
 
 	print()
 
@@ -435,6 +438,10 @@ func _run_rules_tests() -> void:
 	var p4 := gm2.current_player()
 	p4.hand.clear()
 	p4.hand.append(_card(Card.Suit.CLUBS, 8))  # solo 1 carta, sin As
+	# Deck controlado: solo 8s para que begin_turn no auto-juegue Ases del relleno
+	gm2.deck.cards.clear()
+	for _i in range(10):
+		gm2.deck.cards.append(_card(Card.Suit.CLUBS, 8))
 	gm2.begin_turn()
 	eq(p4.hand.size(), Player.MAX_HAND_SIZE, "Regla 8: mano se rellena a 5 al iniciar turno")
 
@@ -458,8 +465,7 @@ func _run_rules_tests() -> void:
 
 	# Regla: Victoria = pozo vacío
 	var p7 := Player.new("Winner", true)
-	ok(!p7.has_won(), "Regla 2: jugador con cartas en pozo no ha ganado (pozo vacío inicialmente — crear 1)")
-	p7.well.append(_ace())
+	p7.well.append(_ace())  # agregar carta antes de chequear
 	ok(!p7.has_won(), "Regla 2: jugador con 1 carta en pozo no ha ganado")
 	p7.well.clear()
 	ok(p7.has_won(),  "Regla 2: jugador con pozo vacío ha ganado")
