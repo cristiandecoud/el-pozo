@@ -1,39 +1,60 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3 uid="uid://bjj2xdtjheg8o"]
 
-[ext_resource type="Script" path="res://scripts/ui/game.gd" id="1_game"]
+[ext_resource type="Script" uid="uid://cop0dk83c4d6a" path="res://scripts/ui/game.gd" id="1_game"]
+[ext_resource type="Theme" uid="uid://bu648k7tx7v50" path="res://temas/juego.tres" id="2_theme"]
 
-[node name="Game" type="Control"]
+[node name="Game" type="Control" unique_id=839297688]
+layout_mode = 3
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+theme = ExtResource("2_theme")
 script = ExtResource("1_game")
 
-[node name="Layout" type="VBoxContainer" parent="."]
+[node name="Layout" type="VBoxContainer" parent="." unique_id=614092220]
+layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
 theme_override_constants/separation = 8
 
-[node name="OpponentRow" type="HBoxContainer" parent="Layout"]
+[node name="OpponentRow" type="HBoxContainer" parent="Layout" unique_id=382942859]
 layout_mode = 2
+alignment = 1
 size_flags_vertical = 3
 
-[node name="CentralArea" type="HBoxContainer" parent="Layout"]
+[node name="CentralArea" type="HBoxContainer" parent="Layout" unique_id=1912366510]
 layout_mode = 2
+alignment = 1
 
-[node name="DeckArea" type="VBoxContainer" parent="Layout/CentralArea"]
+[node name="DeckArea" type="VBoxContainer" parent="Layout/CentralArea" unique_id=1545153668]
 layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/separation = 4
 
-[node name="DeckTitle" type="Label" parent="Layout/CentralArea/DeckArea"]
+[node name="DeckTitle" type="Label" parent="Layout/CentralArea/DeckArea" unique_id=1670992120]
 layout_mode = 2
-text = "Mazo"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 11
+text = "DECK"
 
-[node name="DeckCount" type="Label" parent="Layout/CentralArea/DeckArea"]
+[node name="DeckCard" type="PanelContainer" parent="Layout/CentralArea/DeckArea" unique_id=23505936]
 layout_mode = 2
+custom_minimum_size = Vector2(80, 110)
+
+[node name="DeckCount" type="Label" parent="Layout/CentralArea/DeckArea/DeckCard"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 28
 text = "..."
 
-[node name="LaddersContainer" type="HBoxContainer" parent="Layout/CentralArea"]
+[node name="LaddersContainer" type="HBoxContainer" parent="Layout/CentralArea" unique_id=1694555824]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="HumanRow" type="HBoxContainer" parent="Layout"]
+[node name="HumanRow" type="HBoxContainer" parent="Layout" unique_id=1048044827]
 layout_mode = 2
+alignment = 1
 size_flags_vertical = 3

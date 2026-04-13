@@ -651,67 +651,35 @@ func _refresh_all() -> void:
 
 ---
 
-## Fase 12 — Diálogo de valor de comodín
+## Fase 12 — Comodín automático
 
-**Objetivo:** Cuando el jugador juega un comodín, debe poder elegir su valor (A–K).
-Actualmente el juego hardcodea el valor a 1 (As), ignorando la elección del jugador.
+**Objetivo:** El comodín toma automáticamente el valor que corresponde a la escalera
+donde se coloca. No se necesita ningún diálogo de selección.
 
-### 12.1 — Crear `escenas/ui/joker_dialog/joker_dialog.tscn`
+**Razonamiento:** Cada escalera necesita exactamente un valor en cada momento (el
+siguiente al tope actual, o As si está vacía). Cuando el jugador elige una escalera
+para colocar un comodín, el valor es unívoco — no hay ambigüedad ni elección posible.
+Forzar al jugador a elegir el valor en un diálogo sería redundante e interrumpe el flujo.
 
-Crear la carpeta `escenas/ui/joker_dialog/` y dentro la escena:
+### 12.1 — Helper para derivar el valor del comodín
 
-```
-CanvasLayer "JokerDialog"
-└── PanelContainer "Background"
-      anchors_preset = PRESET_CENTER
-      custom_minimum_size = Vector2(320, 180)
-    └── MarginContainer (margins: 16px all)
-        └── VBoxContainer (separation: 12)
-            ├── Label "Title"
-            │     text = "¿Qué valor tiene el comodín?"
-            │     horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-            │     theme_override_font_sizes/font_size = 16
-            └── GridContainer "ValueGrid"
-                  columns = 7
-```
-
-### 12.2 — Crear `scripts/ui/joker_dialog.gd`
+En `scripts/ui/game.gd`, agregar:
 
 ```gdscript
-class_name JokerDialog
-extends CanvasLayer
-
-signal value_chosen(v: int)
-
-@onready var value_grid: GridContainer = $Background/MarginContainer/VBoxContainer/ValueGrid
-
-const LABELS := ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
-
-func _ready() -> void:
-	for i in range(13):
-		var btn := Button.new()
-		btn.text = LABELS[i]
-		btn.custom_minimum_size = Vector2(38, 38)
-		var val := i + 1
-		btn.pressed.connect(func(): _on_value_pressed(val))
-		value_grid.add_child(btn)
-
-func _on_value_pressed(val: int) -> void:
-	value_chosen.emit(val)
-	queue_free()
+# Derives the joker value automatically from the ladder's current state:
+#   - Empty ladder → 1 (Ace)
+#   - Ladder with cards → top card value + 1
+# This is unambiguous: each ladder slot needs exactly one specific value.
+func _joker_value_for_ladder(ladder_index: int) -> int:
+	var ladder: Array = game_manager.ladder_manager.ladders[ladder_index]
+	if ladder.is_empty():
+		return 1
+	return ladder.back().value + 1
 ```
 
-Adjuntar el script a la escena.
+### 12.2 — Actualizar `_on_ladder_clicked`
 
-### 12.3 — Integrar en `scripts/ui/game.gd`
-
-Agregar el preload junto a las otras constantes:
-
-```gdscript
-const JokerDialogScene := preload("res://escenas/ui/joker_dialog/joker_dialog.tscn")
-```
-
-Hacer `_on_ladder_clicked` asíncrono y usar `await`:
+Reemplazar el stub `_ask_joker_value()` con la derivación automática:
 
 ```gdscript
 func _on_ladder_clicked(ladder_index: int) -> void:
@@ -719,39 +687,54 @@ func _on_ladder_clicked(ladder_index: int) -> void:
 		return
 	var joker_value := 0
 	if selected_card.is_joker:
-		var dialog: JokerDialog = JokerDialogScene.instantiate()
-		add_child(dialog)
-		joker_value = await dialog.value_chosen
+		joker_value = _joker_value_for_ladder(ladder_index)
 	var ok := game_manager.try_play_card(
 		selected_source, selected_index, ladder_index, joker_value)
 	_clear_selection()
+	_clear_ladder_highlights()
 	if not ok:
-		hud.set_status("No se puede jugar ahí. Elegí otra escalera.")
+		hud.set_status("Can't play there. Choose another ladder.")
 	else:
-		hud.set_status("Jugaste " + selected_card.label() + ". Seguí jugando o terminá el turno.")
+		hud.set_status("Played " + selected_card.label() + ". Keep playing or end your turn.")
 	state = InteractionState.IDLE
 ```
 
-**Nota:** GDScript 4 permite que los callbacks de señales sean corrutinas (con `await`).
-El motor espera la corrutina sin bloquear el hilo principal.
-
 Eliminar el método `_ask_joker_value()` que ya no se usa.
+
+### 12.3 — Corregir `_highlight_valid_ladders` para comodines
+
+El código actual pasa `joker_value = 1` al chequear escaleras con un comodín,
+lo que solo resalta escaleras vacías. La corrección: un comodín es válido en
+cualquier escalera que no esté completa (top < 13).
+
+```gdscript
+func _highlight_valid_ladders(card: Card) -> void:
+	for child in ladders_container.get_children():
+		var lv := child as LadderView
+		if lv == null:
+			continue
+		var can_play: bool
+		if card.is_joker:
+			# Joker is valid anywhere the auto-derived value fits (any non-complete ladder)
+			var auto_value := _joker_value_for_ladder(lv.ladder_index)
+			can_play = auto_value <= 13
+		else:
+			can_play = game_manager.ladder_manager.can_play_on(card, lv.ladder_index)
+		lv.set_valid_target(can_play)
+```
 
 ### Cómo probar la Fase 12
 
-1. Correr el juego y esperar hasta tener un comodín en la mano (puede tomar varias
-   partidas; alternativamente, editar `deck.gd` temporalmente para colocar comodines
-   al inicio del array antes de barajar)
-2. Seleccionar el comodín → hacer clic en una escalera válida para cualquier valor
-3. **Resultado esperado:** Aparece un diálogo centrado en pantalla con 13 botones
-   (A, 2, 3 ... 10, J, Q, K)
-4. Hacer clic en "5"
-5. **Resultado esperado:** El diálogo desaparece, el comodín se coloca en la escalera
-   con valor 5 (la escalera muestra "→ 6")
-6. **Error común:** Si el `await` no funciona, asegurarse de que `_on_ladder_clicked`
-   no tenga ninguna declaración `return` antes del `await` que impida llegar a él.
-7. **Error común:** Si el diálogo aparece pero no en el centro, verificar que
-   `anchors_preset = PRESET_CENTER` esté configurado en el PanelContainer "Background".
+1. Correr el juego y obtener un comodín en la mano (o editar `deck.gd`
+   temporalmente para colocar comodines al inicio del array antes de barajar)
+2. Seleccionar el comodín
+3. **Resultado esperado:** todas las escaleras no completas se resaltan en verde
+4. Hacer clic en una escalera que tiene tope 5
+5. **Resultado esperado:** el comodín se coloca con valor 6, la escalera muestra
+   "Needs: 7" — sin ningún diálogo de por medio
+6. Hacer clic en una escalera vacía
+7. **Resultado esperado:** el comodín se coloca como As (valor 1), la escalera
+   muestra "Needs: 2"
 
 ---
 

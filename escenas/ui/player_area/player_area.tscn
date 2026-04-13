@@ -3,30 +3,70 @@
 [ext_resource type="Script" path="res://scripts/ui/player_area_view.gd" id="1_player_area"]
 
 [node name="VBoxContainer" type="VBoxContainer"]
+alignment = 1
 script = ExtResource("1_player_area")
+theme_override_constants/separation = 4
 
 [node name="PlayerName" type="Label" parent="."]
 layout_mode = 2
-text = "Jugador"
+size_flags_horizontal = 4
+horizontal_alignment = 1
+text = "Player"
 
 [node name="WellAndBoard" type="HBoxContainer" parent="."]
 layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/separation = 16
 
 [node name="Well" type="VBoxContainer" parent="WellAndBoard"]
 layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="WellTitle" type="Label" parent="WellAndBoard/Well"]
+layout_mode = 2
+text = "WELL"
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.96078, 0.77255, 0.09412, 1)
 
 [node name="WellCount" type="Label" parent="WellAndBoard/Well"]
 layout_mode = 2
-text = "Pozo: 15"
+text = "15 cards"
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
 
 [node name="WellTopSlot" type="Control" parent="WellAndBoard/Well"]
 layout_mode = 2
-custom_minimum_size = Vector2(130, 180)
+custom_minimum_size = Vector2(200, 290)
 
-[node name="Board" type="HBoxContainer" parent="WellAndBoard"]
+[node name="VSep" type="VSeparator" parent="WellAndBoard"]
+layout_mode = 2
+
+[node name="BoardZone" type="VBoxContainer" parent="WellAndBoard"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="BoardTitle" type="Label" parent="WellAndBoard/BoardZone"]
+layout_mode = 2
+text = "BOARD"
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+
+[node name="Board" type="HBoxContainer" parent="WellAndBoard/BoardZone"]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="Hand" type="HBoxContainer" parent="."]
+[node name="HandZone" type="VBoxContainer" parent="."]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/separation = 2
+
+[node name="HandTitle" type="Label" parent="HandZone"]
+layout_mode = 2
+text = "HAND"
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+
+[node name="Hand" type="HBoxContainer" parent="HandZone"]
 layout_mode = 2
 theme_override_constants/separation = 4
