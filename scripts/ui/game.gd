@@ -10,10 +10,12 @@
 #   - Instantiates and connects all sub-views (player areas, ladders, HUD)
 #     in _ready(), because they are created dynamically based on game data.
 #   - Manages the interaction state machine (InteractionState):
-#       IDLE              → no card selected, waiting for the player to click
-#       CARD_SELECTED     → player chose a card, must now choose a ladder
-#       AWAITING_BOARD_COL → player pressed "End turn", must choose which hand
-#                           card goes down to the board
+#       IDLE               → no card selected, waiting for the player to click
+#       CARD_SELECTED      → player chose a card, must now choose a ladder
+#       AWAITING_BOARD_CARD → player pressed "End turn", must choose which hand
+#                            card goes down to the board
+#       AWAITING_BOARD_DEST → hand card chosen, must now choose which board
+#                            column to place it in (or new column via "+")
 #   - Coordinates the bot's turn: waits a visual delay then calls BotPlayer.play().
 #   - Listens to game_won to lock the UI when the game ends.
 #
@@ -31,7 +33,7 @@
 
 extends Control
 
-enum InteractionState { IDLE, CARD_SELECTED, AWAITING_BOARD_COL }
+enum InteractionState { IDLE, CARD_SELECTED, AWAITING_BOARD_CARD, AWAITING_BOARD_DEST }
 
 var game_manager: GameManager
 var state: InteractionState = InteractionState.IDLE
@@ -43,9 +45,20 @@ var selected_card: Card
 # visual state when the selection changes or the turn ends.
 var _selected_card_view: CardView = null
 
+# Holds the hand index chosen in AWAITING_BOARD_CARD, used when the player
+# subsequently picks a board column in AWAITING_BOARD_DEST.
+var _end_turn_hand_index: int = -1
+
+# Drag & drop state
+var _drag_ghost: CardView = null       # floating card image under the cursor
+var _drag_source_view: CardView = null # original card, dimmed while dragging
+var _drag_is_end_turn: bool = false    # true when dragging during end-turn flow
+var _add_ladder_btn: Button = null     # "+" button at the end of the ladders row
+
 const PlayerAreaScene := preload("res://escenas/ui/player_area/player_area.tscn")
 const LadderScene     := preload("res://escenas/ui/ladder/ladder.tscn")
 const HUDScene        := preload("res://escenas/ui/hud/hud.tscn")
+const CardScene       := preload("res://escenas/ui/card/card.tscn")
 
 @onready var opponent_row: HBoxContainer      = $Layout/OpponentRow
 @onready var human_row: HBoxContainer         = $Layout/HumanRow
@@ -56,6 +69,7 @@ const HUDScene        := preload("res://escenas/ui/hud/hud.tscn")
 var human_area: PlayerAreaView
 var bot_area: PlayerAreaView
 var hud: HUDView
+var _bot_hand_count: Label = null
 
 func _ready() -> void:
 	game_manager = GameManager.new()
@@ -69,12 +83,40 @@ func _ready() -> void:
 	human_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	human_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	human_area.card_selected.connect(_on_human_card_selected)
+	human_area.card_drag_started.connect(_on_card_drag_started)
+	human_area.board_dest_selected.connect(_on_board_dest_selected)
 	human_row.add_child(human_area)
 
+	# Compact bot-hand widget — sits in the top-left corner of opponent_row
+	var bot_hand_box := VBoxContainer.new()
+	bot_hand_box.add_theme_constant_override("separation", 2)
+	bot_hand_box.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	var hand_title_lbl := Label.new()
+	hand_title_lbl.text = "HAND"
+	hand_title_lbl.add_theme_font_size_override("font_size", 11)
+	hand_title_lbl.add_theme_color_override("font_color", Color("#888888"))
+	bot_hand_box.add_child(hand_title_lbl)
+	var hand_slot := Control.new()
+	hand_slot.custom_minimum_size = Vector2(90, 130)
+	var hand_card: CardView = CardScene.instantiate()
+	hand_card.face_down = true
+	hand_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hand_card.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hand_slot.add_child(hand_card)
+	_bot_hand_count = Label.new()
+	_bot_hand_count.add_theme_font_size_override("font_size", 28)
+	_bot_hand_count.add_theme_color_override("font_color", Color("#F0EDE0"))
+	_bot_hand_count.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_bot_hand_count.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_bot_hand_count.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hand_slot.add_child(_bot_hand_count)
+	bot_hand_box.add_child(hand_slot)
+	opponent_row.add_child(bot_hand_box)
+
 	bot_area = PlayerAreaScene.instantiate()
-	bot_area.show_hand = false  # Bot's hand is never revealed
+	bot_area.show_hand = false  # Bot's hand is never revealed; shown via bot_hand_box
 	bot_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bot_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	bot_area.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	opponent_row.add_child(bot_area)
 
 	# HUD at the bottom of the layout
@@ -102,6 +144,7 @@ func _ready() -> void:
 func _refresh_all() -> void:
 	human_area.refresh(game_manager.players[0])
 	bot_area.refresh(game_manager.players[1])
+	_bot_hand_count.text = str(game_manager.players[1].hand.size())
 	_rebuild_ladders()
 	deck_count.text = str(game_manager.deck.size())
 	hud.refresh(game_manager)
@@ -110,9 +153,12 @@ func _refresh_all() -> void:
 	bot_area.set_active_turn(not current.is_human)
 
 # Destroys and recreates all LadderViews to reflect current ladder state.
+# A persistent "+" button at the end lets the player create a new ladder slot
+# whenever they hold an Ace (or a joker they intend to use as an Ace).
 func _rebuild_ladders() -> void:
 	for child in ladders_container.get_children():
 		child.queue_free()
+	_add_ladder_btn = null  # freed by the loop above
 	for i in range(game_manager.ladder_manager.ladders.size()):
 		var lv: LadderView = LadderScene.instantiate()
 		lv.ladder_data = game_manager.ladder_manager.ladders[i]
@@ -120,23 +166,35 @@ func _rebuild_ladders() -> void:
 		lv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		lv.ladder_clicked.connect(_on_ladder_clicked)
 		ladders_container.add_child(lv)
+	# "+" button — always visible; only meaningful when an Ace is selected
+	_add_ladder_btn = Button.new()
+	_add_ladder_btn.text = "+"
+	_add_ladder_btn.custom_minimum_size = Vector2(50, 90)
+	_add_ladder_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_add_ladder_btn.pressed.connect(_on_add_ladder_pressed)
+	ladders_container.add_child(_add_ladder_btn)
 
 # The player clicked a card. Interpreted differently depending on current state:
-#   - In AWAITING_BOARD_COL: a click on a hand card ends the turn by placing it.
+#   - In AWAITING_BOARD_CARD: a hand click picks the card to place on the board.
+#   - In AWAITING_BOARD_DEST: only board-card clicks matter (handled via board_dest_selected).
 #   - Otherwise: selects the card and waits for a ladder click.
 func _on_human_card_selected(source: GameManager.CardSource,
 							  index: int, card: Card) -> void:
 	if not game_manager.current_player().is_human:
 		return
 
-	# End-of-turn flow: player already pressed "End turn" and now chooses
-	# which hand card to place on the board with a direct click.
-	if state == InteractionState.AWAITING_BOARD_COL:
-		if source == GameManager.CardSource.HAND:
-			var col := game_manager.current_player().board.size()
-			_clear_selection()
-			_clear_ladder_highlights()
-			_do_end_turn(index, col)
+	# Step 1 of end-turn: player picks which hand card to send down.
+	if state == InteractionState.AWAITING_BOARD_CARD:
+		if source != GameManager.CardSource.HAND:
+			return
+		_end_turn_hand_index = index
+		state = InteractionState.AWAITING_BOARD_DEST
+		human_area.show_board_destinations(true)
+		hud.set_status("Now choose a board column — existing or new (+).")
+		return
+
+	# Step 2 is handled by board_dest_selected signal from PlayerAreaView.
+	if state == InteractionState.AWAITING_BOARD_DEST:
 		return
 
 	# Clear the previous selection before setting the new one
@@ -176,13 +234,23 @@ func _on_ladder_clicked(ladder_index: int) -> void:
 		hud.log_action(msg)
 	state = InteractionState.IDLE
 
-# The player pressed "End turn": switches to board-column selection mode.
+# The player pressed "End turn": step 1 — pick a hand card to send down.
 func _on_end_turn_pressed() -> void:
 	if game_manager.current_player().hand.is_empty():
 		hud.set_status("No cards in hand to place on the board.")
 		return
-	state = InteractionState.AWAITING_BOARD_COL
+	_clear_selection()
+	_clear_ladder_highlights()
+	state = InteractionState.AWAITING_BOARD_CARD
 	hud.set_status("Choose a card from your hand to place on the board.")
+
+# Step 2 — player chose which board column (or new column) to place the card in.
+func _on_board_dest_selected(col_index: int) -> void:
+	if state != InteractionState.AWAITING_BOARD_DEST:
+		return
+	human_area.show_board_destinations(false)
+	_do_end_turn(_end_turn_hand_index, col_index)
+	_end_turn_hand_index = -1
 
 # Executes the actual end-of-turn: places the chosen card onto the board.
 func _do_end_turn(hand_index: int, board_col: int) -> void:
@@ -246,3 +314,159 @@ func _on_turn_started(player: Player) -> void:
 func _on_game_won(player: Player) -> void:
 	hud.set_status(player.name + " wins!")
 	hud.disable_actions()
+
+# ── Drag & drop ──────────────────────────────────────────────────────────────
+
+# Player started dragging a card. Two modes:
+#   Normal play  — drags from hand/well/board toward a ladder.
+#   End-turn     — drags a hand card (in AWAITING_BOARD_CARD) toward a board column.
+func _on_card_drag_started(source: GameManager.CardSource,
+							index: int, card: Card) -> void:
+	if not game_manager.current_player().is_human:
+		return
+	if state == InteractionState.AWAITING_BOARD_DEST:
+		return  # already committed to a card; ignore new drags
+
+	# End-turn drag: player dragged a hand card while choosing what to send down.
+	if state == InteractionState.AWAITING_BOARD_CARD:
+		if source != GameManager.CardSource.HAND:
+			return
+		_end_turn_hand_index = index
+		state = InteractionState.AWAITING_BOARD_DEST
+		human_area.show_board_destinations(true)
+		_drag_is_end_turn = true
+		_drag_source_view = human_area.get_card_view(source, index)
+		if _drag_source_view != null:
+			_drag_source_view.modulate.a = 0.4
+		_start_ghost(card)
+		return
+
+	# Normal drag: play the card on a ladder.
+	_clear_selection()
+	_clear_ladder_highlights()
+	selected_source = source
+	selected_index  = index
+	selected_card   = card
+	state = InteractionState.CARD_SELECTED
+	_drag_source_view = human_area.get_card_view(source, index)
+	if _drag_source_view != null:
+		_drag_source_view.modulate.a = 0.4
+	_start_ghost(card)
+	_highlight_valid_ladders(card)
+
+# Creates the floating ghost card that follows the cursor.
+func _start_ghost(card: Card) -> void:
+	_drag_ghost = CardScene.instantiate()
+	_drag_ghost.card_data = card
+	_drag_ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_drag_ghost.custom_minimum_size = Vector2(180, 260)
+	_drag_ghost.z_index = 100
+	add_child(_drag_ghost)
+	_drag_ghost.position = get_global_mouse_position() - Vector2(90, 130)
+
+# Moves the ghost and handles mouse release / Escape while dragging.
+func _input(event: InputEvent) -> void:
+	if _drag_ghost == null:
+		return
+	if event is InputEventMouseMotion:
+		_drag_ghost.position = get_global_mouse_position() - Vector2(90, 130)
+	elif event is InputEventMouseButton \
+		 and event.button_index == MOUSE_BUTTON_LEFT \
+		 and not event.pressed:
+		_end_drag()
+	elif event is InputEventKey and event.pressed \
+		 and event.keycode == KEY_ESCAPE:
+		_cancel_drag()
+
+# Cleans up the ghost and resolves the drop.
+func _end_drag() -> void:
+	if _drag_source_view != null:
+		_drag_source_view.modulate.a = 1.0
+		_drag_source_view = null
+	if _drag_ghost != null:
+		_drag_ghost.queue_free()
+		_drag_ghost = null
+	_try_drop_at_mouse()
+
+# Cancels an in-progress drag without taking any action.
+func _cancel_drag() -> void:
+	if _drag_source_view != null:
+		_drag_source_view.modulate.a = 1.0
+		_drag_source_view = null
+	if _drag_ghost != null:
+		_drag_ghost.queue_free()
+		_drag_ghost = null
+	if _drag_is_end_turn:
+		_drag_is_end_turn = false
+		human_area.show_board_destinations(false)
+		_end_turn_hand_index = -1
+		state = InteractionState.IDLE
+	else:
+		_clear_selection()
+		_clear_ladder_highlights()
+		state = InteractionState.IDLE
+	hud.set_status("Your turn")
+
+# Checks whether the mouse is over a valid drop target and resolves the action.
+# End-turn drag: looks for board columns and the "+" new-column slot.
+# Normal drag:   looks for ladders and the "+" new-ladder button.
+func _try_drop_at_mouse() -> void:
+	var mouse_pos := get_global_mouse_position()
+
+	if _drag_is_end_turn:
+		_drag_is_end_turn = false
+		for child in human_area.board_container.get_children():
+			if child.get_global_rect().has_point(mouse_pos):
+				if child.has_meta("col_idx"):
+					_on_board_dest_selected(child.get_meta("col_idx"))
+				else:
+					# Must be the "+" new-column button
+					_on_board_dest_selected(human_area._current_player_board.size())
+				return
+		# Dropped outside board — revert to hand-card-selection step
+		human_area.show_board_destinations(false)
+		_end_turn_hand_index = -1
+		state = InteractionState.AWAITING_BOARD_CARD
+		hud.set_status("Choose a card from your hand to place on the board.")
+		return
+
+	# Normal drag — check ladders
+	for child in ladders_container.get_children():
+		var lv := child as LadderView
+		if lv != null and lv.get_global_rect().has_point(mouse_pos):
+			_on_ladder_clicked(lv.ladder_index)
+			return
+	# Check the "+" new-ladder button
+	if _add_ladder_btn != null \
+	   and _add_ladder_btn.get_global_rect().has_point(mouse_pos):
+		_on_add_ladder_pressed()
+		return
+	# Dropped on nothing — cancel without an error message
+	_clear_selection()
+	_clear_ladder_highlights()
+	state = InteractionState.IDLE
+	hud.set_status("Your turn")
+
+# Creates a new empty ladder slot and immediately plays the selected Ace there.
+# Only valid when an Ace (or a joker used as Ace) is selected.
+func _on_add_ladder_pressed() -> void:
+	if state != InteractionState.CARD_SELECTED:
+		return
+	var effective_val := selected_card.value
+	if selected_card.is_joker:
+		effective_val = 1  # joker acts as Ace on a fresh ladder
+	if effective_val != 1:
+		hud.set_status("Only an Ace can start a new ladder.")
+		return
+	game_manager.ladder_manager.add_ladder_slot()
+	var new_idx := game_manager.ladder_manager.ladders.size() - 1
+	var joker_value := 1 if selected_card.is_joker else 0
+	var ok := game_manager.try_play_card(
+		selected_source, selected_index, new_idx, joker_value)
+	_clear_selection()
+	_clear_ladder_highlights()
+	if ok:
+		hud.set_status("New ladder started! Keep playing or end your turn.")
+	else:
+		hud.set_status("Couldn't start new ladder.")
+	state = InteractionState.IDLE

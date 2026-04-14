@@ -27,6 +27,12 @@ class_name CardView
 extends PanelContainer
 
 signal card_clicked(card_view: CardView)
+signal card_drag_started(card_view: CardView)
+
+const DRAG_THRESHOLD := 8.0
+
+var _press_position: Vector2 = Vector2.ZERO
+var _dragging: bool = false
 
 @export var card_data: Card = null:
 	set(v):
@@ -121,6 +127,17 @@ func _on_hover_exit() -> void:
 	_apply_style()
 
 func _on_gui_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed \
-	   and event.button_index == MOUSE_BUTTON_LEFT:
-		card_clicked.emit(self)
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			_press_position = event.global_position
+			_dragging = false
+		else:
+			if not _dragging:
+				card_clicked.emit(self)
+			_dragging = false
+	elif event is InputEventMouseMotion \
+		 and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		if not _dragging:
+			if event.global_position.distance_to(_press_position) > DRAG_THRESHOLD:
+				_dragging = true
+				card_drag_started.emit(self)

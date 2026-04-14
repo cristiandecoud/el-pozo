@@ -23,17 +23,31 @@ class_name PlayerAreaView
 extends VBoxContainer
 
 signal card_selected(source: GameManager.CardSource, index: int, card: Card)
+signal card_drag_started(source: GameManager.CardSource, index: int, card: Card)
+# Emitted when the player chooses a board column destination at end of turn.
+signal board_dest_selected(col_index: int)
 
 # When false, the hand is shown face-down (used for the bot).
 var show_hand: bool = true
+
+# Board destination selection mode — when true, card clicks on the board emit
+# board_dest_selected instead of card_selected.
+var _board_dest_mode: bool = false
+var _new_col_slot: Button = null
+var _current_player_board: Array = []
 
 @onready var name_label: Label      = $PlayerName
 @onready var well_count: Label      = $WellAndBoard/Well/WellCount
 @onready var well_top_slot: Control = $WellAndBoard/Well/WellTopSlot
 @onready var board_container: HBoxContainer = $WellAndBoard/BoardZone/Board
 @onready var hand_container: HBoxContainer  = $HandZone/Hand
+@onready var hand_zone: VBoxContainer       = $HandZone
 
 const CardScene := preload("res://escenas/ui/card/card.tscn")
+
+const CARD_W      := 180
+const CARD_H      := 260
+const STACK_OFFSET := 35   # px between stacked cards in a board column
 
 # Amber border style for the well card — signals it is the win-condition zone.
 var _style_well: StyleBoxFlat
@@ -45,6 +59,8 @@ func _ready() -> void:
 	_style_well.border_color = Color("#E8A020")
 	_style_well.set_corner_radius_all(6)
 	_style_well.set_content_margin_all(6)
+	# Clip columns so they never push the layout beyond available height
+	board_container.clip_children = CanvasItem.CLIP_CHILDREN_ONLY
 
 # Main entry point — called by game.gd in _refresh_all().
 func refresh(player: Player) -> void:
@@ -61,46 +77,31 @@ func refresh(player: Player) -> void:
 		cv.card_clicked.connect(
 			func(_v): card_selected.emit(GameManager.CardSource.WELL, 0,
 										 player.well_top()))
+		cv.card_drag_started.connect(
+			func(_v): card_drag_started.emit(GameManager.CardSource.WELL, 0,
+											 player.well_top()))
 		well_top_slot.add_child(cv)
 
-	# Board: top card per column, with ×N depth indicator when stacked
+	# Board: fan layout — all cards visible, only the top card is interactive
+	_current_player_board = player.board
 	for child in board_container.get_children():
 		child.queue_free()
+	_new_col_slot = null  # freed by the loop above
 	var col_view_idx := 0
 	for i in range(player.board.size()):
 		var col: Array = player.board[i]
 		if col.is_empty():
 			continue
-		var cv: CardView = CardScene.instantiate()
-		cv.card_data = col.back()
-		var idx := col_view_idx
+		board_container.add_child(_build_board_column(col, col_view_idx))
 		col_view_idx += 1
-		cv.card_clicked.connect(
-			func(_v): card_selected.emit(GameManager.CardSource.BOARD, idx, col.back()))
-		if col.size() > 1:
-			var wrapper := VBoxContainer.new()
-			wrapper.add_child(cv)
-			var count_lbl := Label.new()
-			count_lbl.text = "×" + str(col.size())
-			count_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			count_lbl.add_theme_font_size_override("font_size", 11)
-			count_lbl.add_theme_color_override("font_color", Color("#AAAAAA"))
-			wrapper.add_child(count_lbl)
-			board_container.add_child(wrapper)
-		else:
-			board_container.add_child(cv)
 
-	# Hand: visible if human, face-down if bot
+	# Hand: visible if human; hidden if bot (bot hand is shown externally in top-left)
 	if show_hand:
+		hand_zone.visible = true
 		_rebuild_cards(hand_container, player.hand,
 					   GameManager.CardSource.HAND)
 	else:
-		for child in hand_container.get_children():
-			child.queue_free()
-		for _i in range(player.hand.size()):
-			var cv: CardView = CardScene.instantiate()
-			cv.face_down = true
-			hand_container.add_child(cv)
+		hand_zone.visible = false
 
 # Returns the CardView node for the given source and index, or null if not found.
 # Used by game.gd to mark the selected card with set_selected().
@@ -113,12 +114,11 @@ func get_card_view(source: GameManager.CardSource, index: int) -> CardView:
 		GameManager.CardSource.BOARD:
 			var children := board_container.get_children()
 			if index < children.size():
-				var child := children[index]
-				if child is CardView:
-					return child as CardView
-				# VBoxContainer wrapper: first child is the CardView
-				if child.get_child_count() > 0:
-					return child.get_child(0) as CardView
+				# Column Control: last child is the top (interactive) CardView
+				var col_ctrl := children[index]
+				var n := col_ctrl.get_child_count()
+				if n > 0:
+					return col_ctrl.get_child(n - 1) as CardView
 		GameManager.CardSource.WELL:
 			var children := well_top_slot.get_children()
 			if not children.is_empty():
@@ -132,6 +132,63 @@ func set_active_turn(is_active: bool) -> void:
 	else:
 		name_label.remove_theme_color_override("font_color")
 
+# Activates or deactivates board-column destination mode.
+# When active: board cards emit board_dest_selected and a "+" new-column slot
+# is appended so the player can also create a fresh column.
+func show_board_destinations(active: bool) -> void:
+	_board_dest_mode = active
+	if active:
+		# Tint existing board children to signal they are selectable
+		for child in board_container.get_children():
+			child.modulate = Color(0.8, 1.0, 0.85, 1.0)
+		_add_new_col_slot(_current_player_board.size())
+	else:
+		# Remove the "+" slot and restore colours
+		if _new_col_slot != null:
+			_new_col_slot.queue_free()
+			_new_col_slot = null
+		for child in board_container.get_children():
+			child.modulate = Color(1, 1, 1, 1)
+
+# Appends a "+" button to board_container that creates a new column.
+func _add_new_col_slot(col_index: int) -> void:
+	_new_col_slot = Button.new()
+	_new_col_slot.text = "+"
+	_new_col_slot.custom_minimum_size = Vector2(60, 90)
+	_new_col_slot.pressed.connect(func(): board_dest_selected.emit(col_index))
+	board_container.add_child(_new_col_slot)
+
+# Builds a Control that renders all cards in a column as a vertical fan.
+# Cards are offset by STACK_OFFSET px each; only the top (last) card is clickable.
+func _build_board_column(col: Array, col_idx: int) -> Control:
+	var column_ctrl := Control.new()
+	column_ctrl.set_meta("col_idx", col_idx)  # used by game.gd for drag-drop detection
+	var stack_h := CARD_H + STACK_OFFSET * (col.size() - 1)
+	column_ctrl.custom_minimum_size = Vector2(CARD_W, stack_h)
+
+	for i in range(col.size()):
+		var cv: CardView = CardScene.instantiate()
+		cv.card_data = col[i]
+		cv.position = Vector2(0, STACK_OFFSET * i)
+		cv.custom_minimum_size = Vector2(CARD_W, CARD_H)
+
+		if i < col.size() - 1:
+			cv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		else:
+			# Top card — interactive
+			var idx := col_idx
+			cv.card_clicked.connect(func(_v):
+				if _board_dest_mode:
+					board_dest_selected.emit(idx)
+				else:
+					card_selected.emit(GameManager.CardSource.BOARD, idx, col.back()))
+			cv.card_drag_started.connect(func(_v):
+				card_drag_started.emit(GameManager.CardSource.BOARD, idx, col.back()))
+
+		column_ctrl.add_child(cv)
+
+	return column_ctrl
+
 # Rebuilds a container of CardViews from an array of cards.
 func _rebuild_cards(container: HBoxContainer, cards: Array[Card],
 					source: GameManager.CardSource) -> void:
@@ -143,4 +200,6 @@ func _rebuild_cards(container: HBoxContainer, cards: Array[Card],
 		var idx := i
 		cv.card_clicked.connect(
 			func(_v): card_selected.emit(source, idx, cards[idx]))
+		cv.card_drag_started.connect(
+			func(_v): card_drag_started.emit(source, idx, cards[idx]))
 		container.add_child(cv)

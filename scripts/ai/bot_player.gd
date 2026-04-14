@@ -75,9 +75,15 @@ static func _end_turn(gm: GameManager, player: Player) -> void:
 	gm.try_end_turn(worst_i, col)
 
 static func _pick_board_col(player: Player) -> int:
+	# Prefer reusing a column that's already been emptied (cards moved to ladders)
+	for i in range(player.board.size()):
+		if player.board[i].is_empty():
+			return i
+	# All existing columns have cards — create a new one if room allows
 	if player.board.size() < Player.MAX_BOARD_COLUMNS:
-		return player.board.size()  # new column
-	# Overwrite column with highest top value
+		return player.board.size()
+	# Board is full — overwrite the column whose top card has the highest value
+	# (high-value cards are hardest to play on ladders, so least useful there)
 	var worst := 0
 	for i in range(1, player.board.size()):
 		if player.board[i].back().value > player.board[worst].back().value:
