@@ -20,15 +20,18 @@ class_name HUDView
 extends PanelContainer
 
 signal end_turn_requested()
+signal pause_requested()
 
-@onready var turn_label: Label  = $VBox/ControlRow/TurnLabel
+@onready var turn_label: Label    = $VBox/ControlRow/TurnLabel
 @onready var end_turn_btn: Button = $VBox/ControlRow/EndTurnBtn
-@onready var log_label: Label   = $VBox/LogLabel
+@onready var pause_btn: Button    = $VBox/ControlRow/PauseBtn
+@onready var log_label: Label     = $VBox/LogLabel
 
 var _log_lines: Array[String] = []
 
 func _ready() -> void:
 	end_turn_btn.pressed.connect(func(): end_turn_requested.emit())
+	pause_btn.pressed.connect(func(): pause_requested.emit())
 	# LogLabel is hidden until there are entries, to keep the HUD compact
 	log_label.visible = false
 	# Dark background with a thin green top border to separate from game area

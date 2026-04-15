@@ -63,7 +63,7 @@ static func _best_joker_value(gm: GameManager, card: Card) -> int:
 	return 1
 
 static func _end_turn(gm: GameManager, player: Player) -> void:
-	if player.hand.is_empty():
+	if gm.is_game_over or player.hand.is_empty():
 		return
 	# Place highest-value card on board (least useful for ladders)
 	var worst_i := 0

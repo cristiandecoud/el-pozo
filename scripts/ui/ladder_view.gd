@@ -68,13 +68,7 @@ func refresh() -> void:
 		if next_val > 13:
 			next_label.text = "Complete ✓"
 		else:
-			var next_display := str(next_val)
-			match next_val:
-				1:  next_display = "A"
-				11: next_display = "J"
-				12: next_display = "Q"
-				13: next_display = "K"
-			next_label.text = "Needs: " + next_display
+			next_label.text = "Needs: " + Card.value_to_string(next_val)
 
 # Emits ladder_clicked when the player clicks anywhere in the slot.
 func _on_gui_input(event: InputEvent) -> void:

@@ -1,0 +1,153 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/settings_screen.gd" id="1_settings"]
+[ext_resource type="Theme" uid="uid://bu648k7tx7v50" path="res://temas/juego.tres" id="2_theme"]
+
+[node name="SettingsScreen" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme = ExtResource("2_theme")
+script = ExtResource("1_settings")
+
+[node name="Background" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.176, 0.416, 0.31, 1)
+
+[node name="Panel" type="VBoxContainer" parent="."]
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -720.0
+offset_top = -780.0
+offset_right = 720.0
+offset_bottom = 780.0
+theme_override_constants/separation = 36
+
+[node name="Title" type="Label" parent="Panel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 84
+text = "Configuración"
+
+[node name="HSeparator0" type="HSeparator" parent="Panel"]
+layout_mode = 2
+
+[node name="DisplayTitle" type="Label" parent="Panel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 33
+theme_override_colors/font_color = Color(0.533, 0.533, 0.533, 1)
+text = "PANTALLA"
+
+[node name="FontSizeRow" type="HBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 36
+
+[node name="FontLabel" type="Label" parent="Panel/FontSizeRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Tamaño de fuente"
+
+[node name="FontSlider" type="HSlider" parent="Panel/FontSizeRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(420, 0)
+min_value = 11.0
+max_value = 20.0
+step = 1.0
+value = 14.0
+
+[node name="SpeedRow" type="HBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 36
+
+[node name="SpeedLabel" type="Label" parent="Panel/SpeedRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Velocidad de animación"
+
+[node name="SpeedSlider" type="HSlider" parent="Panel/SpeedRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(420, 0)
+min_value = 0.5
+max_value = 2.0
+step = 0.25
+value = 1.0
+
+[node name="ThemeRow" type="HBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 36
+
+[node name="ThemeLabel" type="Label" parent="Panel/ThemeRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Tema de cartas"
+
+[node name="ThemeOpt" type="OptionButton" parent="Panel/ThemeRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(420, 0)
+
+[node name="HSeparator1" type="HSeparator" parent="Panel"]
+layout_mode = 2
+
+[node name="AudioTitle" type="Label" parent="Panel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 33
+theme_override_colors/font_color = Color(0.333, 0.333, 0.333, 1)
+text = "AUDIO — Próximamente"
+
+[node name="MusicRow" type="HBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 36
+
+[node name="MusicLabel" type="Label" parent="Panel/MusicRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.4, 0.4, 0.4, 1)
+text = "Música"
+
+[node name="MusicSlider" type="HSlider" parent="Panel/MusicRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(420, 0)
+editable = false
+min_value = 0.0
+max_value = 1.0
+step = 0.05
+value = 1.0
+
+[node name="SFXRow" type="HBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 36
+
+[node name="SFXLabel" type="Label" parent="Panel/SFXRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.4, 0.4, 0.4, 1)
+text = "Efectos"
+
+[node name="SFXSlider" type="HSlider" parent="Panel/SFXRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(420, 0)
+editable = false
+min_value = 0.0
+max_value = 1.0
+step = 0.05
+value = 1.0
+
+[node name="HSeparator2" type="HSeparator" parent="Panel"]
+layout_mode = 2
+
+[node name="Buttons" type="HBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 36
+
+[node name="SaveBtn" type="Button" parent="Panel/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 132)
+text = "Guardar"
+
+[node name="BackBtn" type="Button" parent="Panel/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 132)
+text = "Volver"

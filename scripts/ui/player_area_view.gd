@@ -34,6 +34,7 @@ var show_hand: bool = true
 # board_dest_selected instead of card_selected.
 var _board_dest_mode: bool = false
 var _new_col_slot: Button = null
+var _new_col_idx: int = -1
 var _current_player_board: Array = []
 
 @onready var name_label: Label      = $PlayerName
@@ -87,13 +88,11 @@ func refresh(player: Player) -> void:
 	for child in board_container.get_children():
 		child.queue_free()
 	_new_col_slot = null  # freed by the loop above
-	var col_view_idx := 0
 	for i in range(player.board.size()):
 		var col: Array = player.board[i]
 		if col.is_empty():
 			continue
-		board_container.add_child(_build_board_column(col, col_view_idx))
-		col_view_idx += 1
+		board_container.add_child(_build_board_column(col, i))
 
 	# Hand: visible if human; hidden if bot (bot hand is shown externally in top-left)
 	if show_hand:
@@ -112,13 +111,13 @@ func get_card_view(source: GameManager.CardSource, index: int) -> CardView:
 			if index < children.size():
 				return children[index] as CardView
 		GameManager.CardSource.BOARD:
-			var children := board_container.get_children()
-			if index < children.size():
-				# Column Control: last child is the top (interactive) CardView
-				var col_ctrl := children[index]
-				var n := col_ctrl.get_child_count()
-				if n > 0:
-					return col_ctrl.get_child(n - 1) as CardView
+			# Search by the real board index stored in meta, not visual position,
+			# because empty columns are skipped when rendering.
+			for child in board_container.get_children():
+				if child.has_meta("col_idx") and child.get_meta("col_idx") == index:
+					var n := child.get_child_count()
+					if n > 0:
+						return child.get_child(n - 1) as CardView
 		GameManager.CardSource.WELL:
 			var children := well_top_slot.get_children()
 			if not children.is_empty():
@@ -141,9 +140,21 @@ func show_board_destinations(active: bool) -> void:
 		# Tint existing board children to signal they are selectable
 		for child in board_container.get_children():
 			child.modulate = Color(0.8, 1.0, 0.85, 1.0)
-		_add_new_col_slot(_current_player_board.size())
+		# Prefer reusing an existing empty column over creating a new slot,
+		# so the index passed to push_to_board is always valid.
+		var target_idx := -1
+		for i in range(_current_player_board.size()):
+			if (_current_player_board[i] as Array).is_empty():
+				target_idx = i
+				break
+		if target_idx == -1:
+			target_idx = _current_player_board.size()
+		if target_idx < Player.MAX_BOARD_COLUMNS:
+			_new_col_idx = target_idx
+			_add_new_col_slot(_new_col_idx)
 	else:
 		# Remove the "+" slot and restore colours
+		_new_col_idx = -1
 		if _new_col_slot != null:
 			_new_col_slot.queue_free()
 			_new_col_slot = null

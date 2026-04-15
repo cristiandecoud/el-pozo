@@ -1,0 +1,66 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/pause_menu.gd" id="1_script"]
+[ext_resource type="Theme" uid="uid://bu648k7tx7v50" path="res://temas/juego.tres" id="2_theme"]
+
+[node name="PauseMenu" type="CanvasLayer"]
+script = ExtResource("1_script")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme = ExtResource("2_theme")
+
+[node name="Overlay" type="ColorRect" parent="Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.533)
+
+[node name="Panel" type="PanelContainer" parent="Root"]
+layout_mode = 1
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -450.0
+offset_top = -390.0
+offset_right = 450.0
+offset_bottom = 390.0
+
+[node name="VBox" type="VBoxContainer" parent="Root/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 36
+
+[node name="Title" type="Label" parent="Root/Panel/VBox"]
+layout_mode = 2
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 84
+text = "Pausa"
+
+[node name="Sep" type="HSeparator" parent="Root/Panel/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 12)
+
+[node name="ResumeBtn" type="Button" parent="Root/Panel/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 132)
+text = "Continuar"
+
+[node name="RestartBtn" type="Button" parent="Root/Panel/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 132)
+text = "Reiniciar partida"
+
+[node name="SettingsBtn" type="Button" parent="Root/Panel/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 132)
+text = "Configuración"
+
+[node name="MainMenuBtn" type="Button" parent="Root/Panel/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 132)
+text = "Menú principal"

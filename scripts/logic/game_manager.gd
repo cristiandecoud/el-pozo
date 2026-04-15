@@ -12,18 +12,20 @@ var deck: Deck
 var ladder_manager: LadderManager
 var players: Array[Player] = []
 var current_player_index: int = 0
+var is_game_over: bool = false
 
 const INITIAL_LADDERS := 4
 
-func setup() -> void:
+func setup(player_name: String = "You", bot_count: int = 1) -> void:
 	deck = Deck.build(3)
 	ladder_manager = LadderManager.new()
 	for _i in range(INITIAL_LADDERS):
 		ladder_manager.add_ladder_slot()
 
 	players.clear()
-	players.append(Player.new("You", true))
-	players.append(Player.new("Bot", false))
+	players.append(Player.new(player_name, true))
+	for i in range(bot_count):
+		players.append(Player.new("Bot " + str(i + 1), false))
 
 	for player in players:
 		for _i in range(Player.WELL_SIZE):
@@ -37,6 +39,8 @@ func current_player() -> Player:
 	return players[current_player_index]
 
 func begin_turn() -> void:
+	if is_game_over:
+		return
 	var p := current_player()
 	_refill_hand(p)
 	_play_mandatory_aces(p)
@@ -75,6 +79,8 @@ func _play_mandatory_aces(player: Player) -> void:
 
 func try_play_card(source: CardSource, source_index: int,
 				   ladder_index: int, joker_as_value: int = 0) -> bool:
+	if is_game_over:
+		return false
 	var player := current_player()
 	var card: Card = null
 
@@ -112,19 +118,26 @@ func try_play_card(source: CardSource, source_index: int,
 		_refill_hand(player)
 
 	if player.has_won():
+		is_game_over = true
 		game_won.emit(player)
+		state_changed.emit()
+		return true
 
 	state_changed.emit()
 	return true
 
 func try_end_turn(hand_card_index: int, board_col: int) -> bool:
+	if is_game_over:
+		return false
 	var player := current_player()
 	if player.hand.is_empty() or hand_card_index >= player.hand.size():
 		return false
 
 	var card := player.hand[hand_card_index]
 	player.hand.remove_at(hand_card_index)
-	player.push_to_board(card, board_col)
+	if not player.push_to_board(card, board_col):
+		player.hand.insert(hand_card_index, card)  # devolver la carta si no hay lugar
+		return false
 
 	turn_ended.emit(player)
 	state_changed.emit()

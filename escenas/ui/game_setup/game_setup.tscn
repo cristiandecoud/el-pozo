@@ -1,0 +1,89 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/game_setup.gd" id="1_gamesetup"]
+[ext_resource type="Theme" uid="uid://bu648k7tx7v50" path="res://temas/juego.tres" id="2_theme"]
+
+[node name="GameSetup" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme = ExtResource("2_theme")
+script = ExtResource("1_gamesetup")
+
+[node name="Background" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.176, 0.416, 0.31, 1)
+
+[node name="Panel" type="VBoxContainer" parent="."]
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -630.0
+offset_top = -540.0
+offset_right = 630.0
+offset_bottom = 540.0
+theme_override_constants/separation = 36
+
+[node name="Title" type="Label" parent="Panel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 84
+text = "Nueva partida"
+
+[node name="HSeparator0" type="HSeparator" parent="Panel"]
+layout_mode = 2
+
+[node name="NameLabel" type="Label" parent="Panel"]
+layout_mode = 2
+text = "Tu nombre"
+
+[node name="NameInput" type="LineEdit" parent="Panel"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 132)
+placeholder_text = "Jugador"
+max_length = 20
+
+[node name="BotsLabel" type="Label" parent="Panel"]
+layout_mode = 2
+text = "Bots rivales"
+
+[node name="BotsRow" type="HBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 36
+
+[node name="BotMinus" type="Button" parent="Panel/BotsRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(132, 132)
+text = "−"
+
+[node name="BotsCount" type="Label" parent="Panel/BotsRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 66
+text = "1"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotPlus" type="Button" parent="Panel/BotsRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(132, 132)
+text = "+"
+
+[node name="HSeparator1" type="HSeparator" parent="Panel"]
+layout_mode = 2
+
+[node name="Buttons" type="HBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 36
+
+[node name="StartBtn" type="Button" parent="Panel/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 132)
+text = "Comenzar"
+
+[node name="BackBtn" type="Button" parent="Panel/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 132)
+text = "Volver"

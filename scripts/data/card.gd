@@ -13,13 +13,17 @@ func _init(s: Suit, v: int) -> void:
 	is_joker = (s == Suit.JOKER)
 
 func display_value() -> String:
-	match value:
+	return Card.value_to_string(value)
+
+# Static so LadderView (and anyone else) can convert a raw int without a Card instance.
+static func value_to_string(v: int) -> String:
+	match v:
 		0:  return "JK"
 		1:  return "A"
 		11: return "J"
 		12: return "Q"
 		13: return "K"
-		_:  return str(value)
+		_:  return str(v)
 
 func suit_symbol() -> String:
 	match suit:

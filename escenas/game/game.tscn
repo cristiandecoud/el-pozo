@@ -34,7 +34,7 @@ theme_override_constants/separation = 4
 [node name="DeckTitle" type="Label" parent="Layout/CentralArea/DeckArea" unique_id=1670992120]
 layout_mode = 2
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 11
+theme_override_font_sizes/font_size = 20
 text = "DECK"
 
 [node name="DeckCard" type="PanelContainer" parent="Layout/CentralArea/DeckArea" unique_id=23505936]
@@ -47,7 +47,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 horizontal_alignment = 1
 vertical_alignment = 1
-theme_override_font_sizes/font_size = 28
+theme_override_font_sizes/font_size = 36
 text = "..."
 
 [node name="LaddersContainer" type="HBoxContainer" parent="Layout/CentralArea" unique_id=1694555824]

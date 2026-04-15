@@ -53,6 +53,7 @@ var _is_selected: bool = false
 var _style_normal: StyleBoxFlat
 var _style_selected: StyleBoxFlat
 var _style_face_down: StyleBoxFlat
+var _style_hover: StyleBoxFlat
 
 func _ready() -> void:
 	_build_styles()
@@ -61,7 +62,7 @@ func _ready() -> void:
 	mouse_exited.connect(_on_hover_exit)
 	gui_input.connect(_on_gui_input)
 
-# Build the three StyleBoxes once. Duplicating from _style_normal keeps
+# Build all StyleBoxes once. Duplicating from _style_normal keeps
 # shared properties (corners, margins) consistent.
 func _build_styles() -> void:
 	_style_normal = StyleBoxFlat.new()
@@ -78,6 +79,10 @@ func _build_styles() -> void:
 	_style_face_down = _style_normal.duplicate()
 	_style_face_down.bg_color = Color("#1A3A5C")
 	_style_face_down.border_color = Color("#2A5A8C")
+
+	_style_hover = _style_normal.duplicate()
+	_style_hover.border_color = Color("#F5C518")
+	_style_hover.set_border_width_all(3)
 
 # Called by game.gd to mark this card as the currently selected one.
 func set_selected(selected: bool) -> void:
@@ -118,10 +123,7 @@ func _refresh() -> void:
 func _on_hover_enter() -> void:
 	if face_down or card_data == null:
 		return
-	var style := (_style_selected if _is_selected else _style_normal).duplicate()
-	style.border_color = Color("#F5C518")
-	style.set_border_width_all(3)
-	add_theme_stylebox_override("panel", style)
+	add_theme_stylebox_override("panel", _style_hover)
 
 func _on_hover_exit() -> void:
 	_apply_style()

@@ -1,0 +1,67 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/main_menu.gd" id="1_mainmenu"]
+[ext_resource type="Theme" uid="uid://bu648k7tx7v50" path="res://temas/juego.tres" id="2_theme"]
+
+[node name="MainMenu" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme = ExtResource("2_theme")
+script = ExtResource("1_mainmenu")
+
+[node name="Background" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.176, 0.416, 0.31, 1)
+
+[node name="Content" type="VBoxContainer" parent="."]
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -420.0
+offset_top = -480.0
+offset_right = 420.0
+offset_bottom = 480.0
+alignment = 1
+theme_override_constants/separation = 48
+
+[node name="Title" type="Label" parent="Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 156
+theme_override_colors/font_color = Color(0.961, 0.773, 0.094, 1)
+text = "EL POZO"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 48
+theme_override_colors/font_color = Color(0.533, 0.533, 0.533, 1)
+text = "Juego de cartas"
+horizontal_alignment = 1
+
+[node name="VSeparator" type="VSeparator" parent="Content"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 48)
+
+[node name="PlayBtn" type="Button" parent="Content"]
+layout_mode = 2
+custom_minimum_size = Vector2(840, 144)
+text = "Nueva partida"
+
+[node name="StatsBtn" type="Button" parent="Content"]
+layout_mode = 2
+custom_minimum_size = Vector2(840, 144)
+text = "Estadísticas"
+
+[node name="SettingsBtn" type="Button" parent="Content"]
+layout_mode = 2
+custom_minimum_size = Vector2(840, 144)
+text = "Configuración"
+
+[node name="VersionLabel" type="Label" parent="Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 33
+theme_override_colors/font_color = Color(0.333, 0.333, 0.333, 1)
+text = "v0.1"
+horizontal_alignment = 1
