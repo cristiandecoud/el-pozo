@@ -1,0 +1,67 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/rival_board_overlay.gd" id="1_overlay"]
+
+[node name="RivalBoardOverlay" type="CanvasLayer"]
+layer = 10
+script = ExtResource("1_overlay")
+
+[node name="Shield" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.333)
+mouse_filter = 0
+
+[node name="Panel" type="PanelContainer" parent="."]
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -380.0
+offset_top = -260.0
+offset_right = 380.0
+offset_bottom = 260.0
+mouse_filter = 0
+
+[node name="Margin" type="MarginContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="HBoxContainer" parent="Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ColorBar" type="ColorRect" parent="Panel/Margin/VBox/Header"]
+layout_mode = 2
+custom_minimum_size = Vector2(4, 20)
+size_flags_vertical = 4
+
+[node name="PlayerName" type="Label" parent="Panel/Margin/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 18
+
+[node name="HintLabel" type="Label" parent="Panel/Margin/VBox/Header"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.533, 0.533, 0.533, 1)
+text = "Haz click para cerrar"
+
+[node name="HSeparator" type="HSeparator" parent="Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="Scroll" type="ScrollContainer" parent="Panel/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+custom_minimum_size = Vector2(0, 160)
+
+[node name="BoardDisplay" type="HBoxContainer" parent="Panel/Margin/VBox/Scroll"]
+layout_mode = 2
+theme_override_constants/separation = 12

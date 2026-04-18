@@ -16,6 +16,8 @@ func _ready() -> void:
 	_run_ladder_manager_tests()
 	_run_game_manager_tests()
 	_run_rules_tests()
+	_run_bot_tests()
+	_run_deck_scaling_tests()
 
 	print("\n═══════════════════════════════════════════")
 	var total := _passed + _failed
@@ -25,6 +27,7 @@ func _ready() -> void:
 	else:
 		print("  ✗ %d tests fallaron" % _failed)
 	print("═══════════════════════════════════════════\n")
+	get_tree().quit(0 if _failed == 0 else 1)
 
 # ─── Assertion helpers ───────────────────────────────────────────────────────
 
@@ -250,8 +253,9 @@ func _run_game_manager_tests() -> void:
 	# setup() crea el estado inicial correcto
 	var gm := _make_gm()
 	eq(gm.players.size(), 2,                       "setup() crea 2 jugadores")
-	eq(gm.players[0].well.size(), Player.WELL_SIZE, "jugador 0 arranca con pozo de 15")
-	eq(gm.players[1].well.size(), Player.WELL_SIZE, "jugador 1 arranca con pozo de 15")
+	var expected_well: int = SaveData.get_setting("well_size", 2)
+	eq(gm.players[0].well.size(), expected_well, "jugador 0 arranca con pozo de %d" % expected_well)
+	eq(gm.players[1].well.size(), expected_well, "jugador 1 arranca con pozo de %d" % expected_well)
 	eq(gm.players[0].hand.size(), Player.MAX_HAND_SIZE, "jugador 0 arranca con 5 cartas en mano")
 	eq(gm.players[1].hand.size(), Player.MAX_HAND_SIZE, "jugador 1 arranca con 5 cartas en mano")
 	ok(gm.ladder_manager.ladders.size() >= 4,       "setup() crea al menos 4 escaleras")
@@ -521,3 +525,74 @@ func _find_empty_slot(gm: GameManager) -> int:
 			return i
 	gm.ladder_manager.add_ladder_slot()
 	return gm.ladder_manager.ladders.size() - 1
+
+# ─── SUITE 6: BotPlayer ──────────────────────────────────────────────────────
+
+func _run_bot_tests() -> void:
+	_suite_header("BotPlayer")
+
+	# El bot prefiere jugar el well antes que la mano
+	var gm1 := _make_bot_gm([_ace()], [_card(Card.Suit.SPADES, 5)])
+	BotPlayer.play(gm1)
+	ok(gm1.players[0].well.is_empty(),
+	   "bot juega el well antes que la mano cuando ambos son válidos")
+
+	# El bot baja una carta al board si no puede jugar ninguna
+	# Un 8 no cabe en ninguna escalera vacía (solo acepta As)
+	var gm2 := _make_bot_gm([], [_card(Card.Suit.CLUBS, 8)])
+	BotPlayer.play(gm2)
+	var p2 := gm2.players[0]
+	ok(not p2.board.is_empty() and not p2.board[0].is_empty(),
+	   "bot termina el turno bajando carta al board cuando no puede jugar")
+
+	# El bot juega el joker en el slot válido
+	var gm3 := _make_bot_gm([], [_joker()])
+	# Poner un As en la escalera → el joker puede ir como 2
+	gm3.ladder_manager.play_card(_ace(), 0)
+	# Necesita cartas en deck para el begin_turn del siguiente turno
+	for _i in range(5):
+		gm3.deck.cards.append(_card(Card.Suit.CLUBS, 3))
+	BotPlayer.play(gm3)
+	eq(gm3.ladder_manager.ladders[0].size(), 2,
+	   "bot juega joker como 2 sobre As en la escalera")
+
+	# El bot no actúa si is_game_over está en true
+	var gm4 := _make_bot_gm([_ace()], [_card(Card.Suit.CLUBS, 5)])
+	gm4.is_game_over = true
+	var well_size_before := gm4.players[0].well.size()
+	BotPlayer.play(gm4)
+	eq(gm4.players[0].well.size(), well_size_before,
+	   "bot no actúa cuando is_game_over es true")
+
+	print()
+
+# ─── SUITE 7: Deck scaling ───────────────────────────────────────────────────
+
+func _run_deck_scaling_tests() -> void:
+	_suite_header("Deck scaling")
+
+	eq(GameManager._decks_for(2), 3, "2 jugadores → 3 mazos")
+	eq(GameManager._decks_for(3), 4, "3 jugadores → 4 mazos")
+	eq(GameManager._decks_for(4), 4, "4 jugadores → 4 mazos")
+	eq(GameManager._decks_for(5), 5, "5 jugadores → 5 mazos")
+
+	print()
+
+# Crea un GameManager con un bot como jugador actual
+func _make_bot_gm(well_cards: Array = [], hand_cards: Array = []) -> GameManager:
+	var gm := GameManager.new()
+	gm.deck = Deck.new()
+	gm.ladder_manager = LadderManager.new()
+	gm.ladder_manager.add_ladder_slot()
+	var p := Player.new("Bot1", false)
+	for c in well_cards:
+		p.well.append(c)
+	for c in hand_cards:
+		p.hand.append(c)
+	gm.players.clear()
+	gm.players.append(p)
+	gm.current_player_index = 0
+	# Deck con cartas genéricas para refills
+	for _i in range(10):
+		gm.deck.cards.append(_card(Card.Suit.HEARTS, 8))
+	return gm

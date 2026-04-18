@@ -55,27 +55,30 @@ var _drag_source_view: CardView = null # original card, dimmed while dragging
 var _drag_is_end_turn: bool = false    # true when dragging during end-turn flow
 var _add_ladder_btn: Button = null     # "+" button at the end of the ladders row
 
-const PlayerAreaScene  := preload("res://escenas/ui/player_area/player_area.tscn")
-const LadderScene      := preload("res://escenas/ui/ladder/ladder.tscn")
-const HUDScene         := preload("res://escenas/ui/hud/hud.tscn")
-const CardScene        := preload("res://escenas/ui/card/card.tscn")
-const PauseMenuScene   := preload("res://escenas/ui/pause_menu/pause_menu.tscn")
-const GameOverScene    := preload("res://escenas/ui/game_over/game_over.tscn")
+const PlayerAreaScene        := preload("res://escenas/ui/player_area/player_area.tscn")
+const LadderScene            := preload("res://escenas/ui/ladder/ladder.tscn")
+const HUDScene               := preload("res://escenas/ui/hud/hud.tscn")
+const CardScene              := preload("res://escenas/ui/card/card.tscn")
+const PauseMenuScene         := preload("res://escenas/ui/pause_menu/pause_menu.tscn")
+const GameOverScene          := preload("res://escenas/ui/game_over/game_over.tscn")
+const RivalBoardOverlayScene := preload("res://escenas/game/rival_board_overlay/rival_board_overlay.tscn")
+const RivalAreaScene         := preload("res://escenas/game/rival_area/rival_area.tscn")
 
-@onready var opponent_row: HBoxContainer      = $Layout/OpponentRow
-@onready var human_row: HBoxContainer         = $Layout/HumanRow
-@onready var ladders_container: HBoxContainer = $Layout/CentralArea/LaddersContainer
-@onready var deck_count: Label                = $Layout/CentralArea/DeckArea/DeckCard/DeckCount
-@onready var layout: VBoxContainer            = $Layout
+@onready var rivals_row:       HBoxContainer = $MainLayout/RivalsRow
+@onready var human_row:        HBoxContainer = $MainLayout/HumanRow
+@onready var ladders_container: HBoxContainer = $MainLayout/LaddersArea/LaddersContainer
+@onready var deck_count:       Label         = $MainLayout/LaddersArea/DeckArea/DeckCard/DeckCount
+@onready var main_layout:      VBoxContainer = $MainLayout
 
 var human_area: PlayerAreaView
-var bot_area: PlayerAreaView
 var hud: HUDView
-var _bot_hand_count: Label = null
 var _pause_menu: PauseMenu = null
+var _rival_views: Dictionary = {}
+var _single_rival_area: PlayerAreaView = null  # used when bot_count == 1
 
 var _turn_count: int = 0
 var _cards_played: int = 0
+var _rival_overlay: RivalBoardOverlay = null
 
 func _ready() -> void:
 	game_manager = GameManager.new()
@@ -94,47 +97,15 @@ func _ready() -> void:
 	human_area.board_dest_selected.connect(_on_board_dest_selected)
 	human_row.add_child(human_area)
 
-	# Compact bot-hand widget — sits in the top-left corner of opponent_row
-	var bot_hand_box := VBoxContainer.new()
-	bot_hand_box.add_theme_constant_override("separation", 2)
-	bot_hand_box.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	var hand_title_lbl := Label.new()
-	hand_title_lbl.text = "HAND"
-	hand_title_lbl.add_theme_font_size_override("font_size", 20)
-	hand_title_lbl.add_theme_color_override("font_color", Color("#888888"))
-	bot_hand_box.add_child(hand_title_lbl)
-	var hand_slot := Control.new()
-	hand_slot.custom_minimum_size = Vector2(90, 130)
-	var hand_card: CardView = CardScene.instantiate()
-	hand_card.face_down = true
-	hand_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hand_card.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	hand_slot.add_child(hand_card)
-	_bot_hand_count = Label.new()
-	_bot_hand_count.add_theme_font_size_override("font_size", 36)
-	_bot_hand_count.add_theme_color_override("font_color", Color("#F0EDE0"))
-	_bot_hand_count.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_bot_hand_count.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_bot_hand_count.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	hand_slot.add_child(_bot_hand_count)
-	bot_hand_box.add_child(hand_slot)
-	opponent_row.add_child(bot_hand_box)
-
-	bot_area = PlayerAreaScene.instantiate()
-	bot_area.show_hand = false  # Bot's hand is never revealed; shown via bot_hand_box
-	bot_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bot_area.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	opponent_row.add_child(bot_area)
-
 	# HUD at the bottom of the layout
 	hud = HUDScene.instantiate()
 	hud.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hud.end_turn_requested.connect(_on_end_turn_pressed)
 	hud.pause_requested.connect(_toggle_pause)
-	layout.add_child(hud)
+	main_layout.add_child(hud)
 
 	# Style the deck panel as a face-down card (navy blue)
-	var deck_card_panel: PanelContainer = $Layout/CentralArea/DeckArea/DeckCard
+	var deck_card_panel: PanelContainer = $MainLayout/LaddersArea/DeckArea/DeckCard
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color("#1A3A5C")
 	style.set_border_width_all(2)
@@ -144,23 +115,32 @@ func _ready() -> void:
 	deck_card_panel.add_theme_stylebox_override("panel", style)
 	deck_count.add_theme_color_override("font_color", Color("#F0EDE0"))
 
-	var player_name: String = SaveData.session.get("player_name", "Jugador") as String
-	var bot_count: int = SaveData.session.get("bot_count", 1) as int
-	game_manager.setup(player_name, bot_count)
+	var player_name:  String = SaveData.session.get("player_name",  "Jugador") as String
+	var player_color: Color  = SaveData.get_session_color()
+	var bot_count:    int    = SaveData.session.get("bot_count", 1) as int
+	game_manager.setup(player_name, player_color, bot_count)
+	_build_rival_views()
 	game_manager.begin_turn()
 
 # Rebuilds the entire UI from the current game state.
 # This is the single synchronization point between logic and view.
 func _refresh_all() -> void:
 	human_area.refresh(game_manager.players[0])
-	bot_area.refresh(game_manager.players[1])
-	_bot_hand_count.text = str(game_manager.players[1].hand.size())
+	if _single_rival_area != null:
+		_single_rival_area.refresh(game_manager.players[1])
+	else:
+		for player in _rival_views:
+			(_rival_views[player] as RivalAreaView).refresh()
 	_rebuild_ladders()
 	deck_count.text = str(game_manager.deck.size())
 	hud.refresh(game_manager)
 	var current := game_manager.current_player()
 	human_area.set_active_turn(current.is_human)
-	bot_area.set_active_turn(not current.is_human)
+	if _single_rival_area != null:
+		_single_rival_area.set_active_turn(not current.is_human)
+	else:
+		for p in _rival_views:
+			(_rival_views[p] as RivalAreaView).set_active(p == current)
 
 # Destroys and recreates all LadderViews to reflect current ladder state.
 # A persistent "+" button at the end lets the player create a new ladder slot
@@ -330,11 +310,17 @@ func _clear_ladder_highlights() -> void:
 # Bot's turn: dims the human area, waits a visual delay, runs the bot, then restores.
 func _on_turn_started(player: Player) -> void:
 	human_area.set_active_turn(player.is_human)
-	bot_area.set_active_turn(not player.is_human)
+	if _single_rival_area != null:
+		_single_rival_area.set_active_turn(not player.is_human)
+	else:
+		for p in _rival_views:
+			(_rival_views[p] as RivalAreaView).set_active(p == player)
 	if not player.is_human:
 		human_area.modulate = Color(0.5, 0.5, 0.5, 1.0)
 		hud.set_status("Bot is thinking...")
-		await get_tree().create_timer(0.8).timeout
+		var delay: float = SaveData.get_setting("bot_turn_delay", 0.5)
+		if delay > 0.0:
+			await get_tree().create_timer(delay).timeout
 		BotPlayer.play(game_manager)
 		human_area.modulate = Color(1.0, 1.0, 1.0, 1.0)
 		# Do not overwrite the win message if the bot emptied its well
@@ -501,6 +487,41 @@ func _try_drop_at_mouse() -> void:
 	_clear_ladder_highlights()
 	state = InteractionState.IDLE
 	hud.set_status("Your turn")
+
+# ── Rival views ──────────────────────────────────────────────────────────────
+
+func _build_rival_views() -> void:
+	for child in rivals_row.get_children():
+		child.queue_free()
+	_rival_views.clear()
+	_single_rival_area = null
+	var bots := game_manager.players.filter(func(p: Player) -> bool: return not p.is_human)
+	if bots.size() == 1:
+		var view: PlayerAreaView = PlayerAreaScene.instantiate()
+		view.show_hand = false
+		view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		view.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		rivals_row.add_child(view)
+		_single_rival_area = view
+	else:
+		for player in game_manager.players:
+			if player.is_human:
+				continue
+			var view: RivalAreaView = RivalAreaScene.instantiate()
+			rivals_row.add_child(view)
+			view.setup(player)
+			view.inspect_requested.connect(_show_rival_board)
+			_rival_views[player] = view
+
+# ── Rival board overlay ──────────────────────────────────────────────────────
+
+func _show_rival_board(player: Player) -> void:
+	if _rival_overlay != null:
+		_rival_overlay.queue_free()
+	_rival_overlay = RivalBoardOverlayScene.instantiate()
+	add_child(_rival_overlay)
+	_rival_overlay.setup(player)
+	_rival_overlay.tree_exited.connect(func(): _rival_overlay = null)
 
 # ── Pause ────────────────────────────────────────────────────────────────────
 

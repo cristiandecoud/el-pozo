@@ -43,6 +43,39 @@ custom_minimum_size = Vector2(0, 132)
 placeholder_text = "Jugador"
 max_length = 20
 
+[node name="ColorLabel" type="Label" parent="Panel"]
+layout_mode = 2
+text = "Tu color"
+
+[node name="ColorRow" type="HBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="ColorBtn0" type="Button" parent="Panel/ColorRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(88, 88)
+flat = false
+
+[node name="ColorBtn1" type="Button" parent="Panel/ColorRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(88, 88)
+flat = false
+
+[node name="ColorBtn2" type="Button" parent="Panel/ColorRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(88, 88)
+flat = false
+
+[node name="ColorBtn3" type="Button" parent="Panel/ColorRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(88, 88)
+flat = false
+
+[node name="ColorBtn4" type="Button" parent="Panel/ColorRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(88, 88)
+flat = false
+
 [node name="BotsLabel" type="Label" parent="Panel"]
 layout_mode = 2
 text = "Bots rivales"

@@ -29,6 +29,7 @@ signal board_dest_selected(col_index: int)
 
 # When false, the hand is shown face-down (used for the bot).
 var show_hand: bool = true
+var _player: Player = null
 
 # Board destination selection mode — when true, card clicks on the board emit
 # board_dest_selected instead of card_selected.
@@ -65,6 +66,7 @@ func _ready() -> void:
 
 # Main entry point — called by game.gd in _refresh_all().
 func refresh(player: Player) -> void:
+	_player = player
 	name_label.text = player.name
 	well_count.text = str(player.well.size()) + " cards"
 
@@ -123,6 +125,15 @@ func get_card_view(source: GameManager.CardSource, index: int) -> CardView:
 			if not children.is_empty():
 				return children[0] as CardView
 	return null
+
+# Colored border when it is this player's active turn.
+func set_active(active: bool) -> void:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("#1a1a2e")
+	if active and _player != null:
+		style.border_color = _player.color
+		style.set_border_width_all(2)
+	add_theme_stylebox_override("panel", style)
 
 # Highlights the player name in gold when it is their active turn.
 func set_active_turn(is_active: bool) -> void:

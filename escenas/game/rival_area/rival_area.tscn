@@ -1,0 +1,56 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/rival_area_view.gd" id="1_rivalarea"]
+
+[node name="RivalArea" type="PanelContainer"]
+custom_minimum_size = Vector2(160, 120)
+script = ExtResource("1_rivalarea")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Header" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ColorBar" type="ColorRect" parent="Margin/VBox/Header"]
+layout_mode = 2
+custom_minimum_size = Vector2(4, 16)
+size_flags_vertical = 4
+
+[node name="NameLabel" type="Label" parent="Margin/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 13
+
+[node name="WellRow" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="WellIcon" type="Label" parent="Margin/VBox/WellRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.533, 0.533, 0.533, 1)
+text = "⬟"
+
+[node name="WellCard" type="Label" parent="Margin/VBox/WellRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+
+[node name="HandCount" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.533, 0.533, 0.533, 1)
+text = "Mano: 5"
+
+[node name="BoardTops" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 4

@@ -13,10 +13,10 @@ static func play(gm: GameManager) -> void:
 		if well_card != null:
 			var slot := _find_slot(gm, well_card)
 			if slot != -1:
-				gm.try_play_card(GameManager.CardSource.WELL, 0, slot,
-								 _best_joker_value(gm, well_card))
-				moved = true
-				continue
+				if gm.try_play_card(GameManager.CardSource.WELL, 0, slot,
+								 _best_joker_value(gm, well_card)):
+					moved = true
+					continue
 
 		# Priority 2: board tops
 		for col_i in range(player.board.size()):
@@ -25,10 +25,10 @@ static func play(gm: GameManager) -> void:
 			var bc: Card = player.board[col_i].back()
 			var slot := _find_slot(gm, bc)
 			if slot != -1:
-				gm.try_play_card(GameManager.CardSource.BOARD, col_i, slot,
-								 _best_joker_value(gm, bc))
-				moved = true
-				break
+				if gm.try_play_card(GameManager.CardSource.BOARD, col_i, slot,
+								 _best_joker_value(gm, bc)):
+					moved = true
+					break
 
 		if moved:
 			continue
@@ -38,10 +38,10 @@ static func play(gm: GameManager) -> void:
 			var hc := player.hand[hi]
 			var slot := _find_slot(gm, hc)
 			if slot != -1:
-				gm.try_play_card(GameManager.CardSource.HAND, hi, slot,
-								 _best_joker_value(gm, hc))
-				moved = true
-				break
+				if gm.try_play_card(GameManager.CardSource.HAND, hi, slot,
+								 _best_joker_value(gm, hc)):
+					moved = true
+					break
 
 	_end_turn(gm, player)
 

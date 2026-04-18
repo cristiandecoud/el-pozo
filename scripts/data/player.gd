@@ -3,6 +3,7 @@ extends RefCounted
 
 var name: String
 var is_human: bool
+var color: Color = Color.WHITE
 
 # well: index 0 = bottom, last = top (visible)
 var well: Array[Card] = []
@@ -11,7 +12,6 @@ var hand: Array[Card] = []
 var board: Array = []
 
 const MAX_HAND_SIZE := 5
-const WELL_SIZE := 2
 const MAX_BOARD_COLUMNS := 5
 
 func _init(p_name: String, p_is_human: bool) -> void:

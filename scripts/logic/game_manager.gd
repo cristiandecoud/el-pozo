@@ -16,24 +16,48 @@ var is_game_over: bool = false
 
 const INITIAL_LADDERS := 4
 
-func setup(player_name: String = "You", bot_count: int = 1) -> void:
-	deck = Deck.build(3)
+const PLAYER_COLORS: Array[Color] = [
+	Color("#F5C518"),   # Dorado  — humano por defecto
+	Color("#3B82F6"),   # Azul
+	Color("#22C55E"),   # Verde
+	Color("#EF4444"),   # Rojo
+	Color("#A855F7"),   # Violeta
+]
+
+func setup(player_name:  String = "You",
+		   player_color: Color  = Color("#F5C518"),
+		   bot_count:    int    = 1) -> void:
+	var player_count := bot_count + 1
+	var well_size: int = SaveData.get_setting("well_size", 2) as int
+	deck = Deck.build(_decks_for(player_count))
 	ladder_manager = LadderManager.new()
 	for _i in range(INITIAL_LADDERS):
 		ladder_manager.add_ladder_slot()
 
 	players.clear()
-	players.append(Player.new(player_name, true))
+	var human       := Player.new(player_name, true)
+	human.color      = player_color
+	players.append(human)
+
+	var color_pool := PLAYER_COLORS.duplicate()
+	color_pool.erase(player_color)
 	for i in range(bot_count):
-		players.append(Player.new("Bot " + str(i + 1), false))
+		var bot   := Player.new("Bot " + str(i + 1), false)
+		bot.color  = color_pool[i % color_pool.size()]
+		players.append(bot)
 
 	for player in players:
-		for _i in range(Player.WELL_SIZE):
+		for _i in range(well_size):
 			player.well.append(deck.draw())
 		for _i in range(Player.MAX_HAND_SIZE):
 			player.hand.append(deck.draw())
 
 	current_player_index = randi() % players.size()
+
+# Fórmula: 2 jugadores → 3 mazos; +1 mazo cada 2 jugadores adicionales
+# 2→3  3→4  4→4  5→5
+static func _decks_for(player_count: int) -> int:
+	return 3 + ((player_count - 1) >> 1)  # >>1 equivale a /2 entera: 2→3 3→4 4→4 5→5
 
 func current_player() -> Player:
 	return players[current_player_index]

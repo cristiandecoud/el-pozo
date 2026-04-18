@@ -5,7 +5,9 @@ const SAVE_PATH := "user://save_data.json"
 var settings: Dictionary = {
 	"font_size": 14,
 	"animation_speed": 1.0,
-	"card_theme": "classic"
+	"card_theme": "classic",
+	"well_size": 2,
+	"bot_turn_delay": 0.5,
 }
 var players: Dictionary = {}  # name → stats dict
 
@@ -49,12 +51,16 @@ func set_setting(key: String, value: Variant) -> void:
 
 # Called from GameSetup before launching the game scene. Registers the player,
 # persists the last-used name, and stores transient session data (not saved).
-func start_session(player_name: String, bot_count: int) -> void:
+func start_session(player_name: String, player_color: Color, bot_count: int) -> void:
 	ensure_player(player_name)
 	settings["last_player_name"] = player_name
 	save_data()
-	session["player_name"] = player_name
-	session["bot_count"]   = bot_count
+	session["player_name"]  = player_name
+	session["player_color"] = player_color.to_html()
+	session["bot_count"]    = bot_count
+
+func get_session_color() -> Color:
+	return Color(session.get("player_color", "#F5C518"))
 
 # ── Estadísticas de jugador ───────────────────────────────────────────────────
 
