@@ -30,10 +30,16 @@ signal card_clicked(card_view: CardView)
 signal card_drag_started(card_view: CardView)
 
 const DRAG_THRESHOLD := 8.0
+const HOVER_LIFT := 22
 
 var _press_position: Vector2 = Vector2.ZERO
 var _dragging: bool = false
 var _presentation: CardPresentation = CardPresentation.new()
+
+# Set to true for hand cards so hover lifts the card upward.
+var lift_on_hover: bool = false
+var _base_position: Vector2 = Vector2.ZERO
+var _base_z_index: int = 0
 
 @export var card_data: Card = null:
 	set(v):
@@ -78,8 +84,9 @@ func _build_styles() -> void:
 	_style_selected.set_border_width_all(3)
 
 	_style_face_down = _style_normal.duplicate()
-	_style_face_down.bg_color = Color("#1A3A5C")
-	_style_face_down.border_color = Color("#2A5A8C")
+	_style_face_down.bg_color = Color("#8B1A1A")
+	_style_face_down.border_color = Color("#F5C518")
+	_style_face_down.set_border_width_all(3)
 
 	_style_hover = _style_normal.duplicate()
 	_style_hover.border_color = Color("#F5C518")
@@ -116,15 +123,21 @@ func _refresh() -> void:
 	suit_small.add_theme_color_override("font_color", _presentation.font_color)
 	suit_big.add_theme_color_override("font_color", _presentation.font_color)
 
-# Hover: golden border to signal interactivity, without moving the card
-# (position offsets break HBoxContainer layout).
 func _on_hover_enter() -> void:
 	if _presentation.state != CardPresentation.ContentState.FACE_UP:
 		return
 	add_theme_stylebox_override("panel", _style_hover)
+	if lift_on_hover:
+		_base_position = position
+		_base_z_index  = z_index
+		position.y    -= HOVER_LIFT
+		z_index        = 100
 
 func _on_hover_exit() -> void:
 	_apply_style()
+	if lift_on_hover:
+		position = _base_position
+		z_index  = _base_z_index
 
 func _on_gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:

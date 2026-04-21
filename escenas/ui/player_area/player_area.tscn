@@ -67,6 +67,6 @@ text = "HAND"
 theme_override_font_sizes/font_size = 20
 theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
 
-[node name="Hand" type="HBoxContainer" parent="HandZone"]
+[node name="Hand" type="Control" parent="HandZone"]
 layout_mode = 2
-theme_override_constants/separation = 4
+size_flags_vertical = 4

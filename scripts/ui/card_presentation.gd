@@ -4,7 +4,7 @@ extends RefCounted
 enum ContentState { EMPTY, FACE_DOWN, FACE_UP }
 
 const FACE_DOWN_SYMBOL := "?"
-const FACE_DOWN_COLOR := Color("#4A6A8C")
+const FACE_DOWN_COLOR := Color("#F5C518")
 const RED_SUIT_COLOR := Color("#CC2222")
 const DARK_SUIT_COLOR := Color("#111111")
 
@@ -28,8 +28,6 @@ func _init(
 	font_color = p_font_color
 
 static func from_card(card: Card, is_face_down: bool) -> CardPresentation:
-	if card == null:
-		return CardPresentation.new()
 	if is_face_down:
 		return CardPresentation.new(
 			ContentState.FACE_DOWN,
@@ -38,6 +36,8 @@ static func from_card(card: Card, is_face_down: bool) -> CardPresentation:
 			FACE_DOWN_SYMBOL,
 			FACE_DOWN_COLOR
 		)
+	if card == null:
+		return CardPresentation.new()
 	var font_color := RED_SUIT_COLOR if card.is_red() else DARK_SUIT_COLOR
 	var suit_symbol := card.suit_symbol()
 	return CardPresentation.new(

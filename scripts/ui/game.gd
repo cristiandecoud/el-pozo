@@ -33,8 +33,8 @@ var turn_controller: TurnController
 var human_area: PlayerAreaView
 var hud: HUDView
 var _pause_menu: PauseMenu = null
-var _rival_views: Dictionary = {}
-var _single_rival_area: PlayerAreaView = null
+var _rival_views: Dictionary = {}      # Player → RivalAreaView  (3+ bots, compact)
+var _rival_areas: Array[PlayerAreaView] = []  # ordered by bot index (1–2 bots, full view)
 var _rival_overlay: RivalBoardOverlay = null
 
 # Tracks the CardView currently highlighted so we can deselect it on demand.
@@ -74,6 +74,7 @@ func _ready() -> void:
 
 	hud = HUDScene.instantiate()
 	hud.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hud.z_index = 200
 	hud.end_turn_requested.connect(func(): turn_controller.on_end_turn_requested())
 	hud.pause_requested.connect(_toggle_pause)
 	main_layout.add_child(hud)
@@ -98,21 +99,20 @@ func _ready() -> void:
 
 func _refresh_all() -> void:
 	human_area.refresh(game_manager.human_player())
-	if _single_rival_area != null:
-		_single_rival_area.refresh(game_manager.bot_players()[0])
-	else:
-		for player in _rival_views:
-			(_rival_views[player] as RivalAreaView).refresh()
+	var bots := game_manager.bot_players()
+	for i in range(_rival_areas.size()):
+		_rival_areas[i].refresh(bots[i])
+	for player in _rival_views:
+		(_rival_views[player] as RivalAreaView).refresh()
 	_rebuild_ladders()
 	deck_count.text = str(game_manager.deck_size())
-	hud.set_human_turn(game_manager.current_player().is_human)
 	var current := game_manager.current_player()
+	hud.set_human_turn(current.is_human)
 	human_area.set_active_turn(current.is_human)
-	if _single_rival_area != null:
-		_single_rival_area.set_active_turn(not current.is_human)
-	else:
-		for p in _rival_views:
-			(_rival_views[p] as RivalAreaView).set_active(p == current)
+	for i in range(_rival_areas.size()):
+		_rival_areas[i].set_active_turn(bots[i] == current)
+	for p in _rival_views:
+		(_rival_views[p] as RivalAreaView).set_active(p == current)
 
 func _rebuild_ladders() -> void:
 	for child in ladders_container.get_children():
@@ -159,11 +159,11 @@ func _on_bot_thinking_ended() -> void:
 
 func _on_turn_started(player: Player) -> void:
 	human_area.set_active_turn(player.is_human)
-	if _single_rival_area != null:
-		_single_rival_area.set_active_turn(not player.is_human)
-	else:
-		for p in _rival_views:
-			(_rival_views[p] as RivalAreaView).set_active(p == player)
+	var bots := game_manager.bot_players()
+	for i in range(_rival_areas.size()):
+		_rival_areas[i].set_active_turn(bots[i] == player)
+	for p in _rival_views:
+		(_rival_views[p] as RivalAreaView).set_active(p == player)
 	turn_controller.on_turn_started(player)
 
 func _on_game_won(player: Player) -> void:
@@ -285,23 +285,44 @@ func _try_drop_at_mouse() -> void:
 func _build_rival_views() -> void:
 	for child in rivals_row.get_children():
 		child.queue_free()
+	for view in _rival_areas:
+		if is_instance_valid(view):
+			view.queue_free()
+	_rival_areas.clear()
 	_rival_views.clear()
-	_single_rival_area = null
+
 	var bots := game_manager.bot_players()
+
 	if bots.size() == 1:
-		var view: PlayerAreaView = PlayerAreaScene.instantiate()
-		view.show_hand = false
-		view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		view.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		rivals_row.show()
+		var view := _make_rival_player_area()
 		rivals_row.add_child(view)
-		_single_rival_area = view
+		_rival_areas.append(view)
+
+	elif bots.size() == 2:
+		rivals_row.show()
+		var left_view := _make_rival_player_area()
+		var right_view := _make_rival_player_area()
+		rivals_row.add_child(left_view)
+		rivals_row.add_child(right_view)
+		_rival_areas.append(left_view)
+		_rival_areas.append(right_view)
+
 	else:
+		rivals_row.show()
 		for player in bots:
 			var view: RivalAreaView = RivalAreaScene.instantiate()
 			rivals_row.add_child(view)
 			view.setup(player)
 			view.inspect_requested.connect(_show_rival_board)
 			_rival_views[player] = view
+
+func _make_rival_player_area() -> PlayerAreaView:
+	var view: PlayerAreaView = PlayerAreaScene.instantiate()
+	view.show_hand = false
+	view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	view.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	return view
 
 # ── Rival board overlay ───────────────────────────────────────────────────────
 

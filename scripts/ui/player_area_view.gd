@@ -42,14 +42,24 @@ var _current_player_board: Array = []
 @onready var well_count: Label      = $WellAndBoard/Well/WellCount
 @onready var well_top_slot: Control = $WellAndBoard/Well/WellTopSlot
 @onready var board_container: HBoxContainer = $WellAndBoard/BoardZone/Board
-@onready var hand_container: HBoxContainer  = $HandZone/Hand
+@onready var hand_container: Control        = $HandZone/Hand
 @onready var hand_zone: VBoxContainer       = $HandZone
 
 const CardScene := preload("res://escenas/ui/card/card.tscn")
 
-const CARD_W      := 180
-const CARD_H      := 260
-const STACK_OFFSET := 35   # px between stacked cards in a board column
+const CARD_W        := 180
+const CARD_H        := 260
+const STACK_OFFSET  := 35    # px between stacked cards in a board column
+
+const FAN_SPACING     := 58    # px between card left edges in the hand fan
+const FAN_ANGLE       := 5.0   # degrees of rotation per step from center
+const FAN_ARC         := 10.0  # parabolic y-drop (px) per t² at the edges
+# Rival hand fan — smaller cards, inverted fan (top pivot, arc opens downward)
+const RIVAL_CARD_W  := 105
+const RIVAL_CARD_H  := 150
+const RIVAL_SPACING := 32
+const RIVAL_ANGLE   := 5.0
+const RIVAL_ARC     := 8.0
 
 # Amber border style for the well card — signals it is the win-condition zone.
 var _style_well: StyleBoxFlat
@@ -96,13 +106,15 @@ func refresh(player: Player) -> void:
 			continue
 		board_container.add_child(_build_board_column(col, i))
 
-	# Hand: visible if human; hidden if bot (bot hand is shown externally in top-left)
+	# Hand: fan at bottom for human; inverted fan at top for rivals
+	hand_zone.visible = true
 	if show_hand:
-		hand_zone.visible = true
-		_rebuild_cards(hand_container, player.hand,
-					   GameManager.CardSource.HAND)
+		move_child(hand_zone, get_child_count() - 1)
+		hand_container.scale = Vector2(1, 1)
+		_rebuild_hand_fan(player.hand)
 	else:
-		hand_zone.visible = false
+		move_child(hand_zone, 0)
+		_rebuild_rival_fan(player.hand.size())
 
 # Returns the board column index under global_pos, or -1 if none.
 # Checks existing columns first, then the "+" new-column slot.
@@ -214,17 +226,73 @@ func _build_board_column(col: Array, col_idx: int) -> Control:
 
 	return column_ctrl
 
-# Rebuilds a container of CardViews from an array of cards.
-func _rebuild_cards(container: HBoxContainer, cards: Array[Card],
-					source: GameManager.CardSource) -> void:
-	for child in container.get_children():
+# Builds an inverted fan for rivals — smaller cards, top-center pivot so the
+# fan opens downward (simulates holding cards from the opposite side of the table).
+func _rebuild_rival_fan(count: int) -> void:
+	for child in hand_container.get_children():
 		child.queue_free()
-	for i in range(cards.size()):
+	hand_container.scale = Vector2(1, 1)
+	if count == 0:
+		hand_container.custom_minimum_size = Vector2(0, 0)
+		return
+	var half     := (count - 1) / 2.0
+	var max_arc  := half * half * RIVAL_ARC
+	var fan_w    := RIVAL_SPACING * (count - 1) + RIVAL_CARD_W
+	# Clip to top half of each card — enough to read the card backs visually.
+	hand_container.clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
+	hand_container.custom_minimum_size = Vector2(fan_w, RIVAL_CARD_H / 2 + max_arc + 12)
+	for i in range(count):
 		var cv: CardView = CardScene.instantiate()
-		cv.card_data = cards[i]
+		cv.face_down = true
+		cv.custom_minimum_size = Vector2(RIVAL_CARD_W, RIVAL_CARD_H)
+		var t := i - half
+		# Arc inverted: edge cards at y=0 (top), center hangs down to y=max_arc
+		cv.position         = Vector2(i * RIVAL_SPACING, max_arc - t * t * RIVAL_ARC)
+		# 180° flip (upside-down) + small fan spread, pivot at card center
+		cv.rotation_degrees = 180.0 + t * RIVAL_ANGLE
+		cv.pivot_offset     = Vector2(RIVAL_CARD_W / 2.0, RIVAL_CARD_H / 2.0)
+		cv.z_index          = i
+		cv.mouse_filter     = Control.MOUSE_FILTER_IGNORE
+		hand_container.add_child(cv)
+
+# Builds the hand as a rotated fan arc.
+# Cards are laid out left-to-right with x = i * FAN_SPACING.
+# Rotation and a parabolic y-offset create the held-fan illusion.
+# Pivot is at the card's bottom center so rotation fans outward naturally.
+func _rebuild_hand_fan(cards: Array[Card]) -> void:
+	for child in hand_container.get_children():
+		child.queue_free()
+
+	var n := cards.size()
+	if n == 0:
+		hand_container.custom_minimum_size = Vector2(0, 0)
+		return
+
+	var fan_width  := FAN_SPACING * (n - 1) + CARD_W
+	var half       := (n - 1) / 2.0
+	var max_arc_y  := half * half * FAN_ARC
+	# Height: half the card visible + hover headroom (cards offset down by HOVER_LIFT
+	# so the upward hover motion doesn't clip at the container top).
+	hand_container.clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
+	hand_container.custom_minimum_size = Vector2(fan_width,
+			CARD_H / 2 + max_arc_y + CardView.HOVER_LIFT + 8)
+
+	for i in range(n):
+		var cv: CardView = CardScene.instantiate()
+		cv.card_data     = cards[i]
+		cv.lift_on_hover = true
+		cv.custom_minimum_size = Vector2(CARD_W, CARD_H)
+
+		var t    := i - half
+		# Offset y by HOVER_LIFT so hover (position.y -= HOVER_LIFT) stays in-bounds
+		cv.position         = Vector2(i * FAN_SPACING, CardView.HOVER_LIFT + t * t * FAN_ARC)
+		cv.rotation_degrees = t * FAN_ANGLE
+		cv.pivot_offset     = Vector2(CARD_W / 2.0, CARD_H)
+		cv.z_index          = i
+
 		var idx := i
 		cv.card_clicked.connect(
-			func(_v): card_selected.emit(source, idx, cards[idx]))
+			func(_v): card_selected.emit(GameManager.CardSource.HAND, idx, cards[idx]))
 		cv.card_drag_started.connect(
-			func(_v): card_drag_started.emit(source, idx, cards[idx]))
-		container.add_child(cv)
+			func(_v): card_drag_started.emit(GameManager.CardSource.HAND, idx, cards[idx]))
+		hand_container.add_child(cv)
