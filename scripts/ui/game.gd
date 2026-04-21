@@ -1,49 +1,16 @@
 # game.gd — Central coordinator for the game scene
 #
-# Why it exists:
-#   GameManager handles pure game logic (no UI). The views (CardView, LadderView,
-#   etc.) display data but know nothing about the game. game.gd is the glue
-#   between both layers: it interprets UI events, translates them into
-#   GameManager calls, and updates the views with the new state.
+# Responsibilities:
+#   - Build and connect all sub-views (_ready).
+#   - Translate raw UI events (clicks, drags, key presses) into TurnController calls.
+#   - Update views in response to TurnController and GameManager signals.
+#   - Manage Godot-specific concerns: pause, scene changes, node lifecycle.
 #
-# What it does:
-#   - Instantiates and connects all sub-views (player areas, ladders, HUD)
-#     in _ready(), because they are created dynamically based on game data.
-#   - Manages the interaction state machine (InteractionState):
-#       IDLE               → no card selected, waiting for the player to click
-#       CARD_SELECTED      → player chose a card, must now choose a ladder
-#       AWAITING_BOARD_CARD → player pressed "End turn", must choose which hand
-#                            card goes down to the board
-#       AWAITING_BOARD_DEST → hand card chosen, must now choose which board
-#                            column to place it in (or new column via "+")
-#   - All state transitions go through _transition_to(), which handles exit
-#     cleanup and entry setup in one place.
-#   - Coordinates the bot's turn: waits a visual delay then calls game_manager.run_bot_turn().
-#   - Listens to game_won to lock the UI when the game ends.
+# What it does NOT do:
+#   - Own interaction state — that lives in TurnController.
+#   - Decide turn flow rules (end-turn sequence, cancellation, bot orchestration).
 
 extends Control
-
-enum InteractionState { IDLE, CARD_SELECTED, AWAITING_BOARD_CARD, AWAITING_BOARD_DEST }
-
-var game_manager: GameManager
-var state: InteractionState = InteractionState.IDLE
-var selected_source: GameManager.CardSource
-var selected_index: int
-var selected_card: Card
-
-# Tracks the CardView node that is currently selected so we can clear its
-# visual state when the selection changes or the turn ends.
-var _selected_card_view: CardView = null
-
-# Holds the hand index chosen in AWAITING_BOARD_CARD, used when the player
-# subsequently picks a board column in AWAITING_BOARD_DEST.
-var _end_turn_hand_index: int = -1
-
-# Drag & drop state
-var _drag_ghost: CardView = null       # floating card image under the cursor
-var _drag_source_view: CardView = null # original card, dimmed while dragging
-var _drag_is_end_turn: bool = false    # true when dragging during end-turn flow
-var _add_ladder_btn: Button = null     # "+" button at the end of the ladders row
 
 const PlayerAreaScene        := preload("res://escenas/ui/player_area/player_area.tscn")
 const LadderScene            := preload("res://escenas/ui/ladder/ladder.tscn")
@@ -60,12 +27,24 @@ const RivalAreaScene         := preload("res://escenas/game/rival_area/rival_are
 @onready var deck_count:        Label         = $MainLayout/LaddersArea/DeckArea/DeckCard/DeckCount
 @onready var main_layout:       VBoxContainer = $MainLayout
 
+var game_manager:    GameManager
+var turn_controller: TurnController
+
 var human_area: PlayerAreaView
 var hud: HUDView
 var _pause_menu: PauseMenu = null
 var _rival_views: Dictionary = {}
-var _single_rival_area: PlayerAreaView = null  # used when bot_count == 1
+var _single_rival_area: PlayerAreaView = null
 var _rival_overlay: RivalBoardOverlay = null
+
+# Tracks the CardView currently highlighted so we can deselect it on demand.
+var _selected_card_view: CardView = null
+
+# Drag & drop state (pure UI — no game logic)
+var _drag_ghost:       CardView = null
+var _drag_source_view: CardView = null
+var _drag_is_end_turn: bool     = false
+var _add_ladder_btn:   Button   = null
 
 func _ready() -> void:
 	game_manager = GameManager.new()
@@ -73,18 +52,29 @@ func _ready() -> void:
 	game_manager.game_won.connect(_on_game_won)
 	game_manager.turn_started.connect(_on_turn_started)
 
+	turn_controller = TurnController.new()
+	add_child(turn_controller)
+	turn_controller.setup(game_manager)
+	turn_controller.status_updated.connect(func(t): hud.set_status(t))
+	turn_controller.action_logged.connect(func(t): hud.log_action(t))
+	turn_controller.valid_ladders_changed.connect(_on_valid_ladders_changed)
+	turn_controller.board_destinations_visible.connect(func(v): human_area.show_board_destinations(v))
+	turn_controller.selection_cleared.connect(_on_selection_cleared)
+	turn_controller.bot_thinking_started.connect(_on_bot_thinking_started)
+	turn_controller.bot_thinking_ended.connect(_on_bot_thinking_ended)
+
 	human_area = PlayerAreaScene.instantiate()
 	human_area.show_hand = true
 	human_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	human_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	human_area.card_selected.connect(_on_human_card_selected)
 	human_area.card_drag_started.connect(_on_card_drag_started)
-	human_area.board_dest_selected.connect(_on_board_dest_selected)
+	human_area.board_dest_selected.connect(func(col): turn_controller.on_board_dest_chosen(col))
 	human_row.add_child(human_area)
 
 	hud = HUDScene.instantiate()
 	hud.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hud.end_turn_requested.connect(_on_end_turn_pressed)
+	hud.end_turn_requested.connect(func(): turn_controller.on_end_turn_requested())
 	hud.pause_requested.connect(_toggle_pause)
 	main_layout.add_child(hud)
 
@@ -103,46 +93,6 @@ func _ready() -> void:
 	game_manager.setup(player_name, bot_count)
 	_build_rival_views()
 	game_manager.begin_turn()
-
-# ── State machine ─────────────────────────────────────────────────────────────
-
-# Single entry point for all state transitions.
-# Exit cleanup runs first (deselect card, clear highlights, hide board destinations).
-# Entry setup runs after (highlight valid ladders, show board destinations, update HUD).
-# Callers must set selected_source/index/card BEFORE calling _transition_to(CARD_SELECTED).
-func _transition_to(new_state: InteractionState, status: String = "") -> void:
-	match state:
-		InteractionState.CARD_SELECTED:
-			_clear_selection()
-			_clear_ladder_highlights()
-		InteractionState.AWAITING_BOARD_DEST:
-			human_area.show_board_destinations(false)
-			_end_turn_hand_index = -1
-
-	state = new_state
-
-	match new_state:
-		InteractionState.IDLE:
-			human_area.show_board_destinations(false)
-			_end_turn_hand_index = -1
-			if status.is_empty():
-				status = "Your turn"
-		InteractionState.CARD_SELECTED:
-			_highlight_valid_ladders(selected_card)
-			if status.is_empty():
-				status = "Choose a ladder to play " + selected_card.label()
-		InteractionState.AWAITING_BOARD_CARD:
-			_clear_selection()
-			_clear_ladder_highlights()
-			_end_turn_hand_index = -1
-			if status.is_empty():
-				status = "Choose a hand card to place on the board. (End Turn or Esc to cancel.)"
-		InteractionState.AWAITING_BOARD_DEST:
-			human_area.show_board_destinations(true)
-			if status.is_empty():
-				status = "Choose a board column (+). Click another hand card to change. Esc to cancel."
-
-	hud.set_status(status)
 
 # ── Refresh ───────────────────────────────────────────────────────────────────
 
@@ -167,103 +117,43 @@ func _refresh_all() -> void:
 func _rebuild_ladders() -> void:
 	for child in ladders_container.get_children():
 		child.queue_free()
-	_add_ladder_btn = null  # freed by the loop above
+	_add_ladder_btn = null
 	for i in range(game_manager.ladder_count()):
 		var lv: LadderView = LadderScene.instantiate()
 		lv.ladder_data = game_manager.ladder_at(i)
 		lv.ladder_index = i
 		lv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		lv.ladder_clicked.connect(_on_ladder_clicked)
+		lv.ladder_clicked.connect(func(idx): turn_controller.on_ladder_chosen(idx))
 		ladders_container.add_child(lv)
 	_add_ladder_btn = Button.new()
 	_add_ladder_btn.text = "+"
 	_add_ladder_btn.custom_minimum_size = Vector2(50, 90)
 	_add_ladder_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_add_ladder_btn.pressed.connect(_on_add_ladder_pressed)
+	_add_ladder_btn.pressed.connect(func(): turn_controller.on_add_ladder_pressed())
 	ladders_container.add_child(_add_ladder_btn)
 
-# ── Interaction ───────────────────────────────────────────────────────────────
+# ── TurnController signal handlers ────────────────────────────────────────────
 
-func _on_human_card_selected(source: GameManager.CardSource,
-							  index: int, card: Card) -> void:
-	if not game_manager.current_player().is_human:
-		return
-
-	if state == InteractionState.AWAITING_BOARD_CARD:
-		if source != GameManager.CardSource.HAND:
-			return
-		_end_turn_hand_index = index
-		_transition_to(InteractionState.AWAITING_BOARD_DEST)
-		return
-
-	# In AWAITING_BOARD_DEST: allow switching to a different hand card.
-	if state == InteractionState.AWAITING_BOARD_DEST:
-		if source == GameManager.CardSource.HAND:
-			_end_turn_hand_index = index
-			human_area.show_board_destinations(false)
-			human_area.show_board_destinations(true)
-			hud.set_status("Choose a board column (+). Click another hand card to change. Esc to cancel.")
-		return
-
-	# Normal card selection (or re-selection).
-	selected_source = source
-	selected_index  = index
-	selected_card   = card
-	_transition_to(InteractionState.CARD_SELECTED)
-	_selected_card_view = human_area.get_card_view(source, index)
-	if _selected_card_view != null:
-		_selected_card_view.set_selected(true)
-
-func _on_ladder_clicked(ladder_index: int) -> void:
-	if state != InteractionState.CARD_SELECTED:
-		return
-	var ok := game_manager.try_play_card(selected_source, selected_index, ladder_index)
-	if not ok:
-		hud.set_status("Can't play there. Choose another ladder.")
-		return
-	var msg := selected_card.label() + " → ladder " + str(ladder_index + 1)
-	hud.log_action(msg)
-	_transition_to(InteractionState.IDLE,
-				   "Played " + selected_card.label() + ". Keep playing or end your turn.")
-
-func _on_end_turn_pressed() -> void:
-	if state == InteractionState.AWAITING_BOARD_CARD \
-	   or state == InteractionState.AWAITING_BOARD_DEST:
-		_transition_to(InteractionState.IDLE)
-		return
-	if game_manager.current_player().hand.is_empty():
-		hud.set_status("No cards in hand to place on the board.")
-		return
-	_transition_to(InteractionState.AWAITING_BOARD_CARD)
-
-func _on_board_dest_selected(col_index: int) -> void:
-	if state != InteractionState.AWAITING_BOARD_DEST:
-		return
-	var hand_index := _end_turn_hand_index  # save before _transition_to resets it
-	_transition_to(InteractionState.IDLE)
-	var ok := game_manager.try_end_turn(hand_index, col_index)
-	if not ok:
-		hud.set_status("Could not end turn.")
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-func _highlight_valid_ladders(card: Card) -> void:
-	var valid := game_manager.playable_ladders_for(card)
+func _on_valid_ladders_changed(indices: Array[int]) -> void:
 	for child in ladders_container.get_children():
 		var lv := child as LadderView
 		if lv != null:
-			lv.set_valid_target(valid.has(lv.ladder_index))
+			lv.set_valid_target(indices.has(lv.ladder_index))
 
-func _clear_ladder_highlights() -> void:
-	for child in ladders_container.get_children():
-		var lv := child as LadderView
-		if lv != null:
-			lv.set_valid_target(false)
-
-func _clear_selection() -> void:
+func _on_selection_cleared() -> void:
 	if _selected_card_view != null:
 		_selected_card_view.set_selected(false)
 		_selected_card_view = null
+
+func _on_bot_thinking_started() -> void:
+	human_area.modulate = Color(0.5, 0.5, 0.5, 1.0)
+	hud.set_status("Bot is thinking...")
+
+func _on_bot_thinking_ended() -> void:
+	human_area.modulate = Color(1.0, 1.0, 1.0, 1.0)
+	if not game_manager.is_game_over:
+		_refresh_all()
+		hud.set_status("Your turn")
 
 # ── Turn management ───────────────────────────────────────────────────────────
 
@@ -274,17 +164,7 @@ func _on_turn_started(player: Player) -> void:
 	else:
 		for p in _rival_views:
 			(_rival_views[p] as RivalAreaView).set_active(p == player)
-	if not player.is_human:
-		human_area.modulate = Color(0.5, 0.5, 0.5, 1.0)
-		hud.set_status("Bot is thinking...")
-		var delay: float = SaveData.get_setting("bot_turn_delay", 0.5)
-		if delay > 0.0:
-			await get_tree().create_timer(delay).timeout
-		game_manager.run_bot_turn()
-		human_area.modulate = Color(1.0, 1.0, 1.0, 1.0)
-		if not game_manager.is_game_over:
-			_refresh_all()
-			hud.set_status("Your turn")
+	turn_controller.on_turn_started(player)
 
 func _on_game_won(player: Player) -> void:
 	hud.disable_actions()
@@ -292,20 +172,25 @@ func _on_game_won(player: Player) -> void:
 	add_child(go)
 	go.setup(player, game_manager.human_player().name, game_manager.turn_count, game_manager.cards_played)
 
-# ── Drag & drop ───────────────────────────────────────────────────────────────
+# ── Input ─────────────────────────────────────────────────────────────────────
 
-func _on_card_drag_started(source: GameManager.CardSource,
-							index: int, card: Card) -> void:
+func _on_human_card_selected(source: GameManager.CardSource, index: int, card: Card) -> void:
+	turn_controller.on_card_input(source, index, card)
+	if turn_controller.state == TurnController.State.CARD_SELECTED:
+		_selected_card_view = human_area.get_card_view(source, index)
+		if _selected_card_view != null:
+			_selected_card_view.set_selected(true)
+
+func _on_card_drag_started(source: GameManager.CardSource, index: int, card: Card) -> void:
 	if not game_manager.current_player().is_human:
 		return
-	if state == InteractionState.AWAITING_BOARD_DEST:
-		return  # already committed to a card; ignore new drags
+	if turn_controller.state == TurnController.State.AWAITING_BOARD_DEST:
+		return
 
-	if state == InteractionState.AWAITING_BOARD_CARD:
+	if turn_controller.state == TurnController.State.AWAITING_BOARD_CARD:
 		if source != GameManager.CardSource.HAND:
 			return
-		_end_turn_hand_index = index
-		_transition_to(InteractionState.AWAITING_BOARD_DEST)
+		turn_controller.on_drag_started_as_end_turn(index)
 		_drag_is_end_turn = true
 		_drag_source_view = human_area.get_card_view(source, index)
 		if _drag_source_view != null:
@@ -313,15 +198,13 @@ func _on_card_drag_started(source: GameManager.CardSource,
 		_start_ghost(card)
 		return
 
-	# Normal drag: play the card on a ladder.
-	selected_source = source
-	selected_index  = index
-	selected_card   = card
-	_transition_to(InteractionState.CARD_SELECTED)
+	turn_controller.on_drag_started_normal(source, index, card)
 	_drag_source_view = human_area.get_card_view(source, index)
 	if _drag_source_view != null:
 		_drag_source_view.modulate.a = 0.4
 	_start_ghost(card)
+
+# ── Drag & drop ───────────────────────────────────────────────────────────────
 
 func _start_ghost(card: Card) -> void:
 	_drag_ghost = CardScene.instantiate()
@@ -332,20 +215,15 @@ func _start_ghost(card: Card) -> void:
 	add_child(_drag_ghost)
 	_drag_ghost.position = get_global_mouse_position() - Vector2(90, 130)
 
-# Handles mouse movement and release while a drag ghost is active.
-# Escape during drag/end-turn flow is consumed here so _unhandled_input
-# (which opens the pause menu) does not also fire.
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		if _drag_ghost != null:
 			_cancel_drag()
 			get_viewport().set_input_as_handled()
-		elif state == InteractionState.AWAITING_BOARD_DEST:
-			_transition_to(InteractionState.AWAITING_BOARD_CARD)
-			get_viewport().set_input_as_handled()
-		elif state == InteractionState.AWAITING_BOARD_CARD:
-			_transition_to(InteractionState.IDLE)
-			get_viewport().set_input_as_handled()
+		else:
+			turn_controller.on_escape_pressed()
+			if turn_controller.state != TurnController.State.IDLE:
+				get_viewport().set_input_as_handled()
 		return
 	if _drag_ghost == null:
 		return
@@ -377,7 +255,7 @@ func _cancel_drag() -> void:
 		_drag_ghost.queue_free()
 		_drag_ghost = null
 	_drag_is_end_turn = false
-	_transition_to(InteractionState.IDLE)
+	turn_controller.cancel_interaction()
 
 func _try_drop_at_mouse() -> void:
 	var mouse_pos := get_global_mouse_position()
@@ -386,34 +264,21 @@ func _try_drop_at_mouse() -> void:
 		_drag_is_end_turn = false
 		var col := human_area.get_board_col_at_position(mouse_pos)
 		if col >= 0:
-			_on_board_dest_selected(col)
+			turn_controller.on_board_dest_chosen(col)
 			return
-		# Dropped outside board — revert to hand-card-selection step
-		_transition_to(InteractionState.AWAITING_BOARD_CARD,
-					   "Choose a card from your hand to place on the board.")
+		turn_controller.on_drag_dropped_outside_board()
 		return
 
-	# Normal drag — check ladders
 	for child in ladders_container.get_children():
 		var lv := child as LadderView
 		if lv != null and lv.get_global_rect().has_point(mouse_pos):
-			_on_ladder_clicked(lv.ladder_index)
+			turn_controller.on_ladder_chosen(lv.ladder_index)
 			return
 	if _add_ladder_btn != null \
 	   and _add_ladder_btn.get_global_rect().has_point(mouse_pos):
-		_on_add_ladder_pressed()
+		turn_controller.on_add_ladder_pressed()
 		return
-	_transition_to(InteractionState.IDLE)
-
-# ── Ladders ───────────────────────────────────────────────────────────────────
-
-func _on_add_ladder_pressed() -> void:
-	if state != InteractionState.CARD_SELECTED:
-		return
-	var ok := game_manager.try_start_new_ladder(selected_source, selected_index)
-	var msg := "New ladder started! Keep playing or end your turn." if ok \
-			   else "Only an Ace can start a new ladder."
-	_transition_to(InteractionState.IDLE, msg)
+	turn_controller.cancel_interaction()
 
 # ── Rival views ───────────────────────────────────────────────────────────────
 
@@ -431,7 +296,7 @@ func _build_rival_views() -> void:
 		rivals_row.add_child(view)
 		_single_rival_area = view
 	else:
-		for player in game_manager.bot_players():
+		for player in bots:
 			var view: RivalAreaView = RivalAreaScene.instantiate()
 			rivals_row.add_child(view)
 			view.setup(player)
