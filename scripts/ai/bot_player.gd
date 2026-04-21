@@ -11,10 +11,9 @@ static func play(gm: GameManager) -> void:
 		# Priority 1: well top (most important — path to victory)
 		var well_card := player.well_top()
 		if well_card != null:
-			var slot := _find_slot(gm, well_card)
+			var slot := gm.preferred_ladder_for(well_card)
 			if slot != -1:
-				if gm.try_play_card(GameManager.CardSource.WELL, 0, slot,
-								 _best_joker_value(gm, well_card)):
+				if gm.try_play_card(GameManager.CardSource.WELL, 0, slot):
 					moved = true
 					continue
 
@@ -23,10 +22,9 @@ static func play(gm: GameManager) -> void:
 			if player.board[col_i].is_empty():
 				continue
 			var bc: Card = player.board[col_i].back()
-			var slot := _find_slot(gm, bc)
+			var slot := gm.preferred_ladder_for(bc)
 			if slot != -1:
-				if gm.try_play_card(GameManager.CardSource.BOARD, col_i, slot,
-								 _best_joker_value(gm, bc)):
+				if gm.try_play_card(GameManager.CardSource.BOARD, col_i, slot):
 					moved = true
 					break
 
@@ -36,31 +34,13 @@ static func play(gm: GameManager) -> void:
 		# Priority 3: hand cards
 		for hi in range(player.hand.size()):
 			var hc := player.hand[hi]
-			var slot := _find_slot(gm, hc)
+			var slot := gm.preferred_ladder_for(hc)
 			if slot != -1:
-				if gm.try_play_card(GameManager.CardSource.HAND, hi, slot,
-								 _best_joker_value(gm, hc)):
+				if gm.try_play_card(GameManager.CardSource.HAND, hi, slot):
 					moved = true
 					break
 
 	_end_turn(gm, player)
-
-static func _find_slot(gm: GameManager, card: Card) -> int:
-	if card.is_joker:
-		for v in range(1, 14):
-			var s := gm.ladder_manager.find_valid_ladder(card, v)
-			if s != -1:
-				return s
-		return -1
-	return gm.ladder_manager.find_valid_ladder(card)
-
-static func _best_joker_value(gm: GameManager, card: Card) -> int:
-	if not card.is_joker:
-		return 0
-	for v in range(1, 14):
-		if gm.ladder_manager.find_valid_ladder(card, v) != -1:
-			return v
-	return 1
 
 static func _end_turn(gm: GameManager, player: Player) -> void:
 	if gm.is_game_over or player.hand.is_empty():

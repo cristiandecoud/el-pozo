@@ -1,6 +1,9 @@
 # Godot 4 — caché del editor (binarios de importación, shaders compilados, etc.)
 .godot/
 
+# UIDs externos generados por Godot (el UID vive dentro del archivo fuente)
+*.uid
+
 # Configuración de exportación — puede contener claves de firma
 export_presets.cfg
 

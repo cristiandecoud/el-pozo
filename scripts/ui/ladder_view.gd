@@ -65,7 +65,7 @@ func refresh() -> void:
 		cv.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 		var next_val := top.value + 1
-		if next_val > 13:
+		if next_val > Card.MAX_VALUE:
 			next_label.text = "Complete ✓"
 		else:
 			next_label.text = "Needs: " + Card.value_to_string(next_val)

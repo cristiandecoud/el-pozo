@@ -3,7 +3,7 @@ extends RefCounted
 
 var name: String
 var is_human: bool
-var color: Color = Color.WHITE
+var player_number: int = 0
 
 # well: index 0 = bottom, last = top (visible)
 var well: Array[Card] = []
@@ -24,12 +24,28 @@ func well_top() -> Card:
 func pop_well_top() -> Card:
 	return well.pop_back() if not well.is_empty() else null
 
+func get_board_columns() -> Array:
+	return board
+
 func board_tops() -> Array[Card]:
 	var tops: Array[Card] = []
 	for col in board:
 		if not col.is_empty():
 			tops.append(col.back())
 	return tops
+
+func board_top(col_index: int) -> Card:
+	if col_index < board.size() and not board[col_index].is_empty():
+		return board[col_index].back()
+	return null
+
+func next_board_col_for_placement() -> int:
+	for i in range(board.size()):
+		if (board[i] as Array).is_empty():
+			return i
+	if board.size() < MAX_BOARD_COLUMNS:
+		return board.size()
+	return -1
 
 func pop_board_top(col_index: int) -> Card:
 	if col_index < board.size() and not board[col_index].is_empty():

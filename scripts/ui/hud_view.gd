@@ -61,8 +61,7 @@ func log_action(text: String) -> void:
 func disable_actions() -> void:
 	end_turn_btn.disabled = true
 
-# Syncs the HUD with the current turn: hides the button when the bot plays.
-func refresh(gm: GameManager) -> void:
-	var p := gm.current_player()
-	end_turn_btn.visible = p.is_human
+# Shows or hides the end-turn button based on whether it is the human's turn.
+func set_human_turn(is_human: bool) -> void:
+	end_turn_btn.visible = is_human
 	end_turn_btn.disabled = false

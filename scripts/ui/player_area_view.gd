@@ -104,6 +104,17 @@ func refresh(player: Player) -> void:
 	else:
 		hand_zone.visible = false
 
+# Returns the board column index under global_pos, or -1 if none.
+# Checks existing columns first, then the "+" new-column slot.
+func get_board_col_at_position(global_pos: Vector2) -> int:
+	for child in board_container.get_children():
+		if child.get_global_rect().has_point(global_pos):
+			if child.has_meta("col_idx"):
+				return child.get_meta("col_idx")
+			elif _new_col_idx >= 0:
+				return _new_col_idx
+	return -1
+
 # Returns the CardView node for the given source and index, or null if not found.
 # Used by game.gd to mark the selected card with set_selected().
 func get_card_view(source: GameManager.CardSource, index: int) -> CardView:
@@ -131,7 +142,7 @@ func set_active(active: bool) -> void:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color("#1a1a2e")
 	if active and _player != null:
-		style.border_color = _player.color
+		style.border_color = SaveData.get_player_color(_player.player_number)
 		style.set_border_width_all(2)
 	add_theme_stylebox_override("panel", style)
 
@@ -151,16 +162,8 @@ func show_board_destinations(active: bool) -> void:
 		# Tint existing board children to signal they are selectable
 		for child in board_container.get_children():
 			child.modulate = Color(0.8, 1.0, 0.85, 1.0)
-		# Prefer reusing an existing empty column over creating a new slot,
-		# so the index passed to push_to_board is always valid.
-		var target_idx := -1
-		for i in range(_current_player_board.size()):
-			if (_current_player_board[i] as Array).is_empty():
-				target_idx = i
-				break
-		if target_idx == -1:
-			target_idx = _current_player_board.size()
-		if target_idx < Player.MAX_BOARD_COLUMNS:
+		var target_idx := _player.next_board_col_for_placement()
+		if target_idx >= 0:
 			_new_col_idx = target_idx
 			_add_new_col_slot(_new_col_idx)
 	else:
@@ -203,9 +206,9 @@ func _build_board_column(col: Array, col_idx: int) -> Control:
 				if _board_dest_mode:
 					board_dest_selected.emit(idx)
 				else:
-					card_selected.emit(GameManager.CardSource.BOARD, idx, col.back()))
+					card_selected.emit(GameManager.CardSource.BOARD, idx, _player.board_top(idx)))
 			cv.card_drag_started.connect(func(_v):
-				card_drag_started.emit(GameManager.CardSource.BOARD, idx, col.back()))
+				card_drag_started.emit(GameManager.CardSource.BOARD, idx, _player.board_top(idx)))
 
 		column_ctrl.add_child(cv)
 

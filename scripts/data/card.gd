@@ -3,6 +3,8 @@ extends Resource
 
 enum Suit { SPADES, HEARTS, DIAMONDS, CLUBS, JOKER }
 
+const MAX_VALUE := 13
+
 var suit: Suit
 var value: int   # 1=Ace, 2-10, 11=J, 12=Q, 13=K, 0=Joker
 var is_joker: bool
@@ -33,6 +35,9 @@ func suit_symbol() -> String:
 		Suit.CLUBS:    return "♣"
 		Suit.JOKER:    return "★"
 		_:             return "?"
+
+func is_red() -> bool:
+	return suit in [Suit.HEARTS, Suit.DIAMONDS]
 
 func label() -> String:
 	return display_value() + suit_symbol()

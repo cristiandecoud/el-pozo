@@ -22,13 +22,16 @@ func load_data() -> void:
 		save_data()
 		return
 	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if file == null:
+		return
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	file.close()
-	if parsed is Dictionary:
-		if parsed.has("settings"):
-			settings.merge(parsed["settings"], true)
-		if parsed.has("players"):
-			players = parsed["players"]
+	if not parsed is Dictionary:
+		return
+	if parsed.get("settings") is Dictionary:
+		settings.merge(parsed["settings"], true)
+	if parsed.get("players") is Dictionary:
+		players = parsed["players"]
 
 func save_data() -> void:
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -49,18 +52,30 @@ func set_setting(key: String, value: Variant) -> void:
 
 # ── Sesión ────────────────────────────────────────────────────────────────────
 
+const _PLAYER_COLOR_PALETTE: Array[String] = [
+	"#F5C518",  # 1 — humano (sobreescribible por preferencia)
+	"#3B82F6",  # 2
+	"#22C55E",  # 3
+	"#EF4444",  # 4
+	"#A855F7",  # 5
+]
+
+# Returns the display color for a given player_number (1–5).
+# Player 1's color uses the user's saved preference; the rest usan la paleta fija.
+func get_player_color(player_number: int) -> Color:
+	if player_number == 1:
+		return Color(settings.get("player_color", _PLAYER_COLOR_PALETTE[0]) as String)
+	var idx := clampi(player_number - 1, 0, _PLAYER_COLOR_PALETTE.size() - 1)
+	return Color(_PLAYER_COLOR_PALETTE[idx])
+
 # Called from GameSetup before launching the game scene. Registers the player,
 # persists the last-used name, and stores transient session data (not saved).
-func start_session(player_name: String, player_color: Color, bot_count: int) -> void:
+func start_session(player_name: String, bot_count: int) -> void:
 	ensure_player(player_name)
 	settings["last_player_name"] = player_name
 	save_data()
-	session["player_name"]  = player_name
-	session["player_color"] = player_color.to_html()
-	session["bot_count"]    = bot_count
-
-func get_session_color() -> Color:
-	return Color(session.get("player_color", "#F5C518"))
+	session["player_name"] = player_name
+	session["bot_count"]   = bot_count
 
 # ── Estadísticas de jugador ───────────────────────────────────────────────────
 

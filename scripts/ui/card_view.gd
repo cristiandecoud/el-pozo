@@ -9,7 +9,7 @@
 # What it does:
 #   - Shows the card value top-left (ValueLabel) and suit symbol top-right (SuitSmall),
 #     plus a large suit symbol centered vertically (SuitBig).
-#   - Applies red color for hearts/diamonds, dark for spades/clubs.
+#   - Renders precomputed presentation data for value, suit and text color.
 #   - Supports face-down state: navy blue background with "?" instead of card data.
 #   - Highlights with a golden border on mouse hover.
 #   - Exposes set_selected() for game.gd to mark the currently chosen card.
@@ -33,6 +33,7 @@ const DRAG_THRESHOLD := 8.0
 
 var _press_position: Vector2 = Vector2.ZERO
 var _dragging: bool = false
+var _presentation: CardPresentation = CardPresentation.new()
 
 @export var card_data: Card = null:
 	set(v):
@@ -91,37 +92,34 @@ func set_selected(selected: bool) -> void:
 
 # Picks and applies the correct StyleBox based on current state.
 func _apply_style() -> void:
-	if face_down or card_data == null:
-		add_theme_stylebox_override("panel", _style_face_down)
-	elif _is_selected:
-		add_theme_stylebox_override("panel", _style_selected)
-	else:
-		add_theme_stylebox_override("panel", _style_normal)
+	match _presentation.state:
+		CardPresentation.ContentState.EMPTY:
+			add_theme_stylebox_override("panel", _style_normal)
+		CardPresentation.ContentState.FACE_DOWN:
+			add_theme_stylebox_override("panel", _style_face_down)
+		CardPresentation.ContentState.FACE_UP:
+			if _is_selected:
+				add_theme_stylebox_override("panel", _style_selected)
+			else:
+				add_theme_stylebox_override("panel", _style_normal)
 
 # Syncs labels and colors with current card_data / face_down state.
 func _refresh() -> void:
 	if not is_inside_tree():
 		return
+	_presentation = CardPresentation.from_card(card_data, face_down)
 	_apply_style()
-	if face_down or card_data == null:
-		value_label.text = ""
-		suit_small.text  = ""
-		suit_big.text    = "?"
-		suit_big.add_theme_color_override("font_color", Color("#4A6A8C"))
-		return
-	value_label.text = card_data.display_value()
-	suit_small.text  = card_data.suit_symbol()
-	suit_big.text    = card_data.suit_symbol()
-	var is_red := card_data.suit in [Card.Suit.HEARTS, Card.Suit.DIAMONDS]
-	var color  := Color("#CC2222") if is_red else Color("#111111")
-	value_label.add_theme_color_override("font_color", color)
-	suit_small.add_theme_color_override("font_color", color)
-	suit_big.add_theme_color_override("font_color", color)
+	value_label.text = _presentation.value_text
+	suit_small.text = _presentation.suit_small_text
+	suit_big.text = _presentation.suit_big_text
+	value_label.add_theme_color_override("font_color", _presentation.font_color)
+	suit_small.add_theme_color_override("font_color", _presentation.font_color)
+	suit_big.add_theme_color_override("font_color", _presentation.font_color)
 
 # Hover: golden border to signal interactivity, without moving the card
 # (position offsets break HBoxContainer layout).
 func _on_hover_enter() -> void:
-	if face_down or card_data == null:
+	if _presentation.state != CardPresentation.ContentState.FACE_UP:
 		return
 	add_theme_stylebox_override("panel", _style_hover)
 

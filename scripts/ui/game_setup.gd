@@ -69,5 +69,6 @@ func _on_start() -> void:
 	var player_name := name_input.text.strip_edges()
 	if player_name.is_empty():
 		player_name = "Jugador"
-	SaveData.start_session(player_name, _selected_color, _bot_count)
+	SaveData.set_setting("player_color", _selected_color.to_html())
+	SaveData.start_session(player_name, _bot_count)
 	get_tree().change_scene_to_file("res://escenas/game/game.tscn")
