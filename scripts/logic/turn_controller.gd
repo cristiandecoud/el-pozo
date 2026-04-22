@@ -8,6 +8,8 @@ signal board_destinations_visible(show: bool)
 signal selection_cleared()
 signal bot_thinking_started()
 signal bot_thinking_ended()
+signal move_about_to_play(event: CardMoveEvent)
+signal animation_finished
 
 enum State { IDLE, CARD_SELECTED, AWAITING_BOARD_CARD, AWAITING_BOARD_DEST }
 
@@ -17,6 +19,7 @@ var selected_source: GameManager.CardSource
 var selected_index:  int
 var selected_card:   Card
 var _end_turn_hand_index: int = -1
+var _bot_running: bool = false
 
 func setup(gm: GameManager) -> void:
 	game_manager = gm
@@ -109,15 +112,43 @@ func cancel_interaction() -> void:
 # ── Turn lifecycle ─────────────────────────────────────────────────────────────
 
 func on_turn_started(player: Player) -> void:
-	if not player.is_human:
+	if not player.is_human and not _bot_running:
 		_run_bot_turn()
 
+# Called by game.gd after the animation for a move finishes.
+func notify_animation_done() -> void:
+	animation_finished.emit()
+
 func _run_bot_turn() -> void:
+	_bot_running = true
 	bot_thinking_started.emit()
-	var delay: float = SaveData.get_setting("bot_turn_delay", 0.5)
-	if delay > 0.0:
-		await get_tree().create_timer(delay).timeout
-	game_manager.run_bot_turn()
+	var move_delay: float = SaveData.get_setting("bot_move_delay", 0.5)
+
+	while true:
+		var move := BotPlayer.get_next_move(game_manager)
+		if move == null:
+			break
+		move_about_to_play.emit(move)
+		await animation_finished
+		game_manager.apply_move(move)
+		if game_manager.is_game_over:
+			_bot_running = false
+			bot_thinking_ended.emit()
+			return
+		if move_delay > 0.0:
+			await get_tree().create_timer(move_delay).timeout
+
+	var end_move := BotPlayer.get_end_turn_move(game_manager)
+	if end_move != null:
+		status_updated.emit(game_manager.current_player().name + " finaliza turno...")
+		move_about_to_play.emit(end_move)
+		await animation_finished
+		_bot_running = false
+		game_manager.apply_move(end_move)
+		bot_thinking_ended.emit()
+		return
+
+	_bot_running = false
 	bot_thinking_ended.emit()
 
 # ── State machine ─────────────────────────────────────────────────────────────

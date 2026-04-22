@@ -7,7 +7,8 @@ var settings: Dictionary = {
 	"animation_speed": 1.0,
 	"card_theme": "classic",
 	"well_size": 2,
-	"bot_turn_delay": 0.5,
+	"bot_move_delay": 0.5,
+	"move_animation_duration": 0.4,
 }
 var players: Dictionary = {}  # name → stats dict
 

@@ -103,6 +103,49 @@ max_value = 10.0
 step = 1.0
 value = 2.0
 
+[node name="HSeparator0b" type="HSeparator" parent="Panel"]
+layout_mode = 2
+
+[node name="GameTitle" type="Label" parent="Panel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 33
+theme_override_colors/font_color = Color(0.533, 0.533, 0.533, 1)
+text = "JUEGO"
+
+[node name="BotDelayRow" type="HBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 36
+
+[node name="BotDelayLabel" type="Label" parent="Panel/BotDelayRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Pausa entre movimientos del bot (s)"
+
+[node name="BotDelaySlider" type="HSlider" parent="Panel/BotDelayRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(420, 0)
+min_value = 0.1
+max_value = 1.5
+step = 0.1
+value = 0.5
+
+[node name="AnimDurationRow" type="HBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 36
+
+[node name="AnimDurationLabel" type="Label" parent="Panel/AnimDurationRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Duración de animación de carta (s)"
+
+[node name="AnimDurationSlider" type="HSlider" parent="Panel/AnimDurationRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(420, 0)
+min_value = 0.1
+max_value = 1.0
+step = 0.05
+value = 0.4
+
 [node name="HSeparator1" type="HSeparator" parent="Panel"]
 layout_mode = 2
 

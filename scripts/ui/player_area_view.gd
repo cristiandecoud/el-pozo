@@ -133,6 +133,13 @@ func get_board_col_at_position(global_pos: Vector2) -> int:
 				return _new_col_idx
 	return -1
 
+# Global center position of a card — used as animation origin.
+func get_card_global_pos(source: GameManager.CardSource, index: int) -> Vector2:
+	var cv := get_card_view(source, index)
+	if cv == null:
+		return Vector2.ZERO
+	return cv.global_position + cv.size / Vector2(2.0, 2.0)
+
 # Returns the CardView node for the given source and index, or null if not found.
 # Used by game.gd to mark the selected card with set_selected().
 func get_card_view(source: GameManager.CardSource, index: int) -> CardView:

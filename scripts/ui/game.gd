@@ -29,6 +29,7 @@ const RivalAreaScene         := preload("res://escenas/game/rival_area/rival_are
 
 var game_manager:    GameManager
 var turn_controller: TurnController
+var _card_animator:  CardAnimator
 
 var human_area: PlayerAreaView
 var hud: HUDView
@@ -52,6 +53,10 @@ func _ready() -> void:
 	game_manager.game_won.connect(_on_game_won)
 	game_manager.turn_started.connect(_on_turn_started)
 
+	_card_animator = CardAnimator.new()
+	_card_animator.layer = 10
+	add_child(_card_animator)
+
 	turn_controller = TurnController.new()
 	add_child(turn_controller)
 	turn_controller.setup(game_manager)
@@ -62,6 +67,7 @@ func _ready() -> void:
 	turn_controller.selection_cleared.connect(_on_selection_cleared)
 	turn_controller.bot_thinking_started.connect(_on_bot_thinking_started)
 	turn_controller.bot_thinking_ended.connect(_on_bot_thinking_ended)
+	turn_controller.move_about_to_play.connect(_on_move_about_to_play)
 
 	human_area = PlayerAreaScene.instantiate()
 	human_area.show_hand = true
@@ -150,10 +156,63 @@ func _on_bot_thinking_started() -> void:
 	hud.set_status("Bot is thinking...")
 
 func _on_bot_thinking_ended() -> void:
-	human_area.modulate = Color(1.0, 1.0, 1.0, 1.0)
-	if not game_manager.is_game_over:
+	if game_manager.is_game_over:
+		return
+	if game_manager.current_player().is_human:
+		human_area.modulate = Color(1.0, 1.0, 1.0, 1.0)
 		_refresh_all()
 		hud.set_status("Your turn")
+
+func _on_move_about_to_play(event: CardMoveEvent) -> void:
+	var duration: float = SaveData.get_setting("move_animation_duration", 0.4)
+
+	var src_area := _get_player_area(event.player_index)
+	var src_pos: Vector2
+	if src_area != null:
+		src_pos = src_area.get_card_global_pos(event.source, event.source_index)
+		# Pre-flight: brief scale-up to signal the card is about to be picked up
+		var src_view := src_area.get_card_view(event.source, event.source_index)
+		if src_view != null:
+			var lift := create_tween()
+			lift.set_ease(Tween.EASE_OUT)
+			lift.tween_property(src_view, "scale", Vector2(1.2, 1.2), 0.15)
+			await lift.finished
+	else:
+		src_pos = get_viewport_rect().size / 2
+
+	var dst_pos: Vector2
+	if event.dest_type == CardMoveEvent.DestType.LADDER:
+		var lv := _get_ladder_view(event.dest_index)
+		dst_pos = lv.card_area.get_global_rect().get_center() \
+				if lv != null else get_viewport_rect().size / 2
+	else:
+		dst_pos = src_area.board_container.get_global_rect().get_center() \
+				if src_area != null else get_viewport_rect().size / 2
+
+	await _card_animator.animate_move(event.card, src_pos, dst_pos, duration)
+
+	# End-of-turn: briefly flash the board zone green to confirm card placement
+	if event.dest_type == CardMoveEvent.DestType.BOARD and src_area != null:
+		src_area.board_container.modulate = Color(0.8, 1.2, 0.8, 1.0)
+		await get_tree().create_timer(0.4).timeout
+		src_area.board_container.modulate = Color(1, 1, 1, 1)
+
+	turn_controller.notify_animation_done()
+
+func _get_player_area(player_index: int) -> PlayerAreaView:
+	if player_index == 0:
+		return human_area
+	var bot_idx := player_index - 1
+	if bot_idx < _rival_areas.size():
+		return _rival_areas[bot_idx]
+	return null
+
+func _get_ladder_view(index: int) -> LadderView:
+	for child in ladders_container.get_children():
+		var lv := child as LadderView
+		if lv != null and lv.ladder_index == index:
+			return lv
+	return null
 
 # ── Turn management ───────────────────────────────────────────────────────────
 

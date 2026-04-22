@@ -5,6 +5,7 @@ signal turn_started(player: Player)
 signal turn_ended(player: Player)
 signal game_won(player: Player)
 signal state_changed()
+signal card_move_happened(event: CardMoveEvent)
 
 enum CardSource { HAND, WELL, BOARD }
 
@@ -172,6 +173,15 @@ func try_play_card(source: CardSource, source_index: int,
 	if player.hand.is_empty():
 		_refill_hand(player)
 
+	var ev := CardMoveEvent.new()
+	ev.player_index = current_player_index
+	ev.source       = source
+	ev.source_index = source_index
+	ev.dest_type    = CardMoveEvent.DestType.LADDER
+	ev.dest_index   = ladder_index
+	ev.card         = card
+	card_move_happened.emit(ev)
+
 	if player.has_won():
 		is_game_over = true
 		SaveData.record_game_result(players[0].name, player.is_human, turn_count, cards_played)
@@ -195,6 +205,15 @@ func try_end_turn(hand_card_index: int, board_col: int) -> bool:
 		player.hand.insert(hand_card_index, card)  # devolver la carta si no hay lugar
 		return false
 
+	var ev := CardMoveEvent.new()
+	ev.player_index = current_player_index
+	ev.source       = CardSource.HAND
+	ev.source_index = hand_card_index
+	ev.dest_type    = CardMoveEvent.DestType.BOARD
+	ev.dest_index   = board_col
+	ev.card         = card
+	card_move_happened.emit(ev)
+
 	turn_count += 1
 	turn_ended.emit(player)
 	state_changed.emit()
@@ -208,7 +227,15 @@ func _advance_turn() -> void:
 func run_bot_turn() -> void:
 	if is_game_over or current_player().is_human:
 		return
-	BotPlayer.play(self)
+	var move := BotPlayer.get_next_move(self)
+	while move != null:
+		apply_move(move)
+		if is_game_over:
+			return
+		move = BotPlayer.get_next_move(self)
+	var end_move := BotPlayer.get_end_turn_move(self)
+	if end_move != null:
+		apply_move(end_move)
 
 func try_start_new_ladder(source: CardSource, source_index: int) -> bool:
 	var card := card_at(source, source_index)
@@ -220,6 +247,39 @@ func try_start_new_ladder(source: CardSource, source_index: int) -> bool:
 		ladder_manager.ladders.remove_at(new_idx)
 		return false
 	return true
+
+func apply_move(event: CardMoveEvent) -> void:
+	var player := players[event.player_index]
+
+	match event.source:
+		CardSource.HAND:
+			player.hand.remove_at(event.source_index)
+		CardSource.WELL:
+			player.pop_well_top()
+		CardSource.BOARD:
+			player.pop_board_top(event.source_index)
+
+	if event.dest_type == CardMoveEvent.DestType.LADDER:
+		var effective := _effective_value_for(event.card, event.dest_index)
+		ladder_manager.play_card(event.card, event.dest_index, effective)
+		cards_played += 1
+		if player.hand.is_empty():
+			_refill_hand(player)
+		card_move_happened.emit(event)
+		if player.has_won():
+			is_game_over = true
+			SaveData.record_game_result(players[0].name, player.is_human, turn_count, cards_played)
+			game_won.emit(player)
+			state_changed.emit()
+			return
+		state_changed.emit()
+	else:  # BOARD — end of turn
+		player.push_to_board(event.card, event.dest_index)
+		turn_count += 1
+		card_move_happened.emit(event)
+		turn_ended.emit(player)
+		state_changed.emit()
+		_advance_turn()
 
 func _effective_value_for(card: Card, ladder_index: int) -> int:
 	if card == null:

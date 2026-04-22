@@ -17,6 +17,7 @@ func _ready() -> void:
 	_run_game_manager_tests()
 	_run_rules_tests()
 	_run_bot_tests()
+	_run_card_move_event_tests()
 	_run_deck_scaling_tests()
 
 	print("\n═══════════════════════════════════════════")
@@ -533,14 +534,14 @@ func _run_bot_tests() -> void:
 
 	# El bot prefiere jugar el well antes que la mano
 	var gm1 := _make_bot_gm([_ace()], [_card(Card.Suit.SPADES, 5)])
-	BotPlayer.play(gm1)
+	gm1.run_bot_turn()
 	ok(gm1.players[0].well.is_empty(),
 	   "bot juega el well antes que la mano cuando ambos son válidos")
 
 	# El bot baja una carta al board si no puede jugar ninguna
 	# Un 8 no cabe en ninguna escalera vacía (solo acepta As)
 	var gm2 := _make_bot_gm([], [_card(Card.Suit.CLUBS, 8)])
-	BotPlayer.play(gm2)
+	gm2.run_bot_turn()
 	var p2 := gm2.players[0]
 	ok(not p2.board.is_empty() and not p2.board[0].is_empty(),
 	   "bot termina el turno bajando carta al board cuando no puede jugar")
@@ -552,7 +553,7 @@ func _run_bot_tests() -> void:
 	# Necesita cartas en deck para el begin_turn del siguiente turno
 	for _i in range(5):
 		gm3.deck.cards.append(_card(Card.Suit.CLUBS, 3))
-	BotPlayer.play(gm3)
+	gm3.run_bot_turn()
 	eq(gm3.ladder_manager.ladders[0].size(), 2,
 	   "bot juega joker como 2 sobre As en la escalera")
 
@@ -560,9 +561,84 @@ func _run_bot_tests() -> void:
 	var gm4 := _make_bot_gm([_ace()], [_card(Card.Suit.CLUBS, 5)])
 	gm4.is_game_over = true
 	var well_size_before := gm4.players[0].well.size()
-	BotPlayer.play(gm4)
+	gm4.run_bot_turn()
 	eq(gm4.players[0].well.size(), well_size_before,
 	   "bot no actúa cuando is_game_over es true")
+
+	print()
+
+# ─── SUITE 7: CardMoveEvent + apply_move ─────────────────────────────────────
+
+func _run_card_move_event_tests() -> void:
+	_suite_header("CardMoveEvent + apply_move")
+
+	# get_next_move devuelve null cuando no hay jugadas válidas
+	var gm1 := _make_bot_gm([], [_card(Card.Suit.CLUBS, 8)])
+	var move1 := BotPlayer.get_next_move(gm1)
+	ok(move1 == null, "get_next_move retorna null cuando ninguna carta puede jugarse")
+
+	# get_next_move prioriza el well
+	var gm2 := _make_bot_gm([_ace()], [_card(Card.Suit.SPADES, 5)])
+	var move2 := BotPlayer.get_next_move(gm2)
+	ok(move2 != null, "get_next_move retorna movimiento cuando el well tiene un As")
+	eq(int(move2.source), int(GameManager.CardSource.WELL), "get_next_move usa WELL como fuente")
+	eq(int(move2.dest_type), int(CardMoveEvent.DestType.LADDER), "dest_type es LADDER")
+
+	# apply_move(LADDER) remueve la carta de la fuente y la coloca en la escalera
+	var gm3 := _make_bot_gm([], [_ace()])
+	var move3 := BotPlayer.get_next_move(gm3)
+	ok(move3 != null, "get_next_move encuentra As en mano")
+	var ladder_idx := move3.dest_index
+	var ladder_size_before: int = gm3.ladder_manager.ladders[ladder_idx].size()
+	gm3.apply_move(move3)
+	eq(gm3.players[0].hand.size(), Player.MAX_HAND_SIZE,
+	   "apply_move(LADDER desde HAND) rellena la mano automáticamente")
+	eq(gm3.ladder_manager.ladders[ladder_idx].size(), ladder_size_before + 1,
+	   "apply_move(LADDER) agrega la carta a la escalera")
+
+	# apply_move(LADDER) desde WELL consume el tope del well
+	var gm4 := _make_bot_gm([_ace()], [_card(Card.Suit.CLUBS, 7)])
+	var move4 := BotPlayer.get_next_move(gm4)
+	ok(move4 != null and move4.source == GameManager.CardSource.WELL,
+	   "get_next_move usa WELL cuando tiene As jugable")
+	gm4.apply_move(move4)
+	ok(gm4.players[0].well.is_empty(), "apply_move(LADDER desde WELL) consume el tope del pozo")
+
+	# apply_move emite card_move_happened
+	var gm5 := _make_bot_gm([], [_ace()])
+	var events5: Array = []
+	gm5.card_move_happened.connect(func(ev): events5.append(ev))
+	var move5 := BotPlayer.get_next_move(gm5)
+	gm5.apply_move(move5)
+	eq(events5.size(), 1, "apply_move emite card_move_happened exactamente una vez")
+	eq(events5[0].card.value, 1, "card_move_happened contiene la carta correcta")
+
+	# get_end_turn_move devuelve movimiento de tipo BOARD
+	var gm6 := _make_bot_gm([], [_card(Card.Suit.HEARTS, 9)])
+	var end_move := BotPlayer.get_end_turn_move(gm6)
+	ok(end_move != null, "get_end_turn_move retorna movimiento cuando hay cartas en mano")
+	eq(int(end_move.dest_type), int(CardMoveEvent.DestType.BOARD), "end_turn move tiene dest_type BOARD")
+	eq(int(end_move.source), int(GameManager.CardSource.HAND), "end_turn move usa fuente HAND")
+
+	# apply_move(BOARD) coloca carta en el tablero y avanza el turno
+	var gm7 := _make_bot_gm([], [_card(Card.Suit.DIAMONDS, 6)])
+	var _prev_idx7 := gm7.current_player_index
+	var end_move7 := BotPlayer.get_end_turn_move(gm7)
+	var board_before7 := gm7.players[0].board.size()
+	gm7.apply_move(end_move7)
+	ok(gm7.players[0].board.size() > board_before7 or
+	   (gm7.players[0].board.size() > 0 and not gm7.players[0].board[end_move7.dest_index].is_empty()),
+	   "apply_move(BOARD) coloca la carta en el tablero del jugador")
+
+	# game_won se emite cuando el pozo queda vacío al jugar desde WELL
+	var gm9 := _make_bot_gm([_ace()], [_card(Card.Suit.CLUBS, 5)])
+	gm9.players[0].well.clear()
+	gm9.players[0].well.append(_ace())  # exactamente 1 carta
+	var won9: Array = []
+	gm9.game_won.connect(func(p): won9.append(p))
+	var slot9 := _find_empty_slot(gm9)
+	gm9.try_play_card(GameManager.CardSource.WELL, 0, slot9)
+	ok(won9.size() > 0, "game_won se emite cuando jugar el tope del well vacía el pozo")
 
 	print()
 

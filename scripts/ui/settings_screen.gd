@@ -1,16 +1,20 @@
 extends Control
 
-@onready var font_slider: HSlider     = $Panel/FontSizeRow/FontSlider
-@onready var speed_slider: HSlider    = $Panel/SpeedRow/SpeedSlider
-@onready var theme_opt: OptionButton  = $Panel/ThemeRow/ThemeOpt
-@onready var well_spin: SpinBox       = $Panel/WellRow/WellSpin
-@onready var save_btn: Button         = $Panel/Buttons/SaveBtn
-@onready var back_btn: Button         = $Panel/Buttons/BackBtn
+@onready var font_slider: HSlider          = $Panel/FontSizeRow/FontSlider
+@onready var speed_slider: HSlider         = $Panel/SpeedRow/SpeedSlider
+@onready var theme_opt: OptionButton       = $Panel/ThemeRow/ThemeOpt
+@onready var well_spin: SpinBox            = $Panel/WellRow/WellSpin
+@onready var bot_delay_slider: HSlider     = $Panel/BotDelayRow/BotDelaySlider
+@onready var anim_duration_slider: HSlider = $Panel/AnimDurationRow/AnimDurationSlider
+@onready var save_btn: Button              = $Panel/Buttons/SaveBtn
+@onready var back_btn: Button              = $Panel/Buttons/BackBtn
 
 func _ready() -> void:
-	font_slider.value  = SaveData.get_setting("font_size", 14)
-	speed_slider.value = SaveData.get_setting("animation_speed", 1.0)
-	well_spin.value    = SaveData.get_setting("well_size", 2)
+	font_slider.value         = SaveData.get_setting("font_size", 14)
+	speed_slider.value        = SaveData.get_setting("animation_speed", 1.0)
+	well_spin.value           = SaveData.get_setting("well_size", 2)
+	bot_delay_slider.value    = SaveData.get_setting("bot_move_delay", 0.5)
+	anim_duration_slider.value = SaveData.get_setting("move_animation_duration", 0.4)
 
 	theme_opt.clear()
 	theme_opt.add_item("Clásico")
@@ -23,6 +27,8 @@ func _on_save() -> void:
 	SaveData.set_setting("animation_speed", speed_slider.value)
 	SaveData.set_setting("card_theme", "classic")
 	SaveData.set_setting("well_size", int(well_spin.value))
+	SaveData.set_setting("bot_move_delay", bot_delay_slider.value)
+	SaveData.set_setting("move_animation_duration", anim_duration_slider.value)
 	_go_back()
 
 func _go_back() -> void:
