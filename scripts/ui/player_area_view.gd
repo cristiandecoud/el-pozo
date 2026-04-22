@@ -59,7 +59,9 @@ const RIVAL_CARD_W  := 105
 const RIVAL_CARD_H  := 150
 const RIVAL_SPACING := 32
 const RIVAL_ANGLE   := 5.0
-const RIVAL_ARC     := 8.0
+const RIVAL_ARC     := 1.0
+const RIVAL_PEEK    := 0   # px of rival card visible — roughly half the card height
+const RIVAL_HIDE_Y  := RIVAL_CARD_H - RIVAL_PEEK
 
 # Amber border style for the well card — signals it is the win-condition zone.
 var _style_well: StyleBoxFlat
@@ -236,21 +238,26 @@ func _rebuild_rival_fan(count: int) -> void:
 		hand_container.custom_minimum_size = Vector2(0, 0)
 		return
 	var half     := (count - 1) / 2.0
-	var max_arc  := half * half * RIVAL_ARC
 	var fan_w    := RIVAL_SPACING * (count - 1) + RIVAL_CARD_W
-	# Clip to top half of each card — enough to read the card backs visually.
+	var clip_h   := RIVAL_PEEK
 	hand_container.clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
-	hand_container.custom_minimum_size = Vector2(fan_w, RIVAL_CARD_H / 2 + max_arc + 12)
+	hand_container.custom_minimum_size = Vector2(fan_w, clip_h)
+	hand_container.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	# Force size after VBox layout pass so the clip rect matches clip_h exactly
+	hand_container.set_deferred("size", Vector2(fan_w, clip_h))
+	# Prevent hand_zone from expanding and pulling the container taller
+	hand_zone.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	hand_zone.clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
 	for i in range(count):
 		var cv: CardView = CardScene.instantiate()
 		cv.face_down = true
 		cv.custom_minimum_size = Vector2(RIVAL_CARD_W, RIVAL_CARD_H)
 		var t := i - half
-		# Arc inverted: edge cards at y=0 (top), center hangs down to y=max_arc
-		cv.position         = Vector2(i * RIVAL_SPACING, max_arc - t * t * RIVAL_ARC)
-		# 180° flip (upside-down) + small fan spread, pivot at card center
-		cv.rotation_degrees = 180.0 + t * RIVAL_ANGLE
-		cv.pivot_offset     = Vector2(RIVAL_CARD_W / 2.0, RIVAL_CARD_H / 2.0)
+		# Push cards upward so only the lower half remains visible inside the clip rect.
+		cv.position         = Vector2(i * RIVAL_SPACING, -RIVAL_HIDE_Y + t * t * RIVAL_ARC)
+		# -t: bottoms spread outward (Λ), top-center pivot = grip at top
+		cv.rotation_degrees = -t * RIVAL_ANGLE
+		cv.pivot_offset     = Vector2(RIVAL_CARD_W / 2.0, 0)
 		cv.z_index          = i
 		cv.mouse_filter     = Control.MOUSE_FILTER_IGNORE
 		hand_container.add_child(cv)
