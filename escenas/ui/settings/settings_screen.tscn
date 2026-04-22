@@ -86,6 +86,23 @@ text = "Tema de cartas"
 layout_mode = 2
 custom_minimum_size = Vector2(420, 0)
 
+[node name="WellRow" type="HBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 36
+
+[node name="WellLabel" type="Label" parent="Panel/WellRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Tamaño del pozo (cartas)"
+
+[node name="WellSpin" type="SpinBox" parent="Panel/WellRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(420, 0)
+min_value = 1.0
+max_value = 10.0
+step = 1.0
+value = 2.0
+
 [node name="HSeparator1" type="HSeparator" parent="Panel"]
 layout_mode = 2
 

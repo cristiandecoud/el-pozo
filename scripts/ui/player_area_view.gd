@@ -29,6 +29,8 @@ signal board_dest_selected(col_index: int)
 
 # When false, the hand is shown face-down (used for the bot).
 var show_hand: bool = true
+# Controls where the hand zone sits: true = bottom (human side), false = top (rival side).
+var hand_at_bottom: bool = true
 var _player: Player = null
 
 # Board destination selection mode — when true, card clicks on the board emit
@@ -108,14 +110,16 @@ func refresh(player: Player) -> void:
 			continue
 		board_container.add_child(_build_board_column(col, i))
 
-	# Hand: fan at bottom for human; inverted fan at top for rivals
+	# Hand position: bottom for human side, top for rivals sitting across.
 	hand_zone.visible = true
-	if show_hand:
+	if hand_at_bottom:
 		move_child(hand_zone, get_child_count() - 1)
+	else:
+		move_child(hand_zone, 0)
+	if show_hand:
 		hand_container.scale = Vector2(1, 1)
 		_rebuild_hand_fan(player.hand)
 	else:
-		move_child(hand_zone, 0)
 		_rebuild_rival_fan(player.hand.size())
 
 # Returns the board column index under global_pos, or -1 if none.

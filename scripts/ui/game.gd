@@ -285,6 +285,10 @@ func _try_drop_at_mouse() -> void:
 func _build_rival_views() -> void:
 	for child in rivals_row.get_children():
 		child.queue_free()
+	# Remove any rival previously added to human_row (keep human_area)
+	for child in human_row.get_children():
+		if child != human_area:
+			child.queue_free()
 	for view in _rival_areas:
 		if is_instance_valid(view):
 			view.queue_free()
@@ -295,18 +299,31 @@ func _build_rival_views() -> void:
 
 	if bots.size() == 1:
 		rivals_row.show()
-		var view := _make_rival_player_area()
+		var view := _make_rival_top_area()
 		rivals_row.add_child(view)
 		_rival_areas.append(view)
 
 	elif bots.size() == 2:
 		rivals_row.show()
-		var left_view := _make_rival_player_area()
-		var right_view := _make_rival_player_area()
+		var left_view  := _make_rival_top_area()
+		var right_view := _make_rival_top_area()
 		rivals_row.add_child(left_view)
 		rivals_row.add_child(right_view)
 		_rival_areas.append(left_view)
 		_rival_areas.append(right_view)
+
+	elif bots.size() == 3:
+		# 4-player layout: two rivals at top, one rival at bottom-right.
+		rivals_row.show()
+		var top_left  := _make_rival_top_area()
+		var top_right := _make_rival_top_area()
+		rivals_row.add_child(top_left)
+		rivals_row.add_child(top_right)
+		_rival_areas.append(top_left)
+		_rival_areas.append(top_right)
+		var bottom_right := _make_rival_bottom_area()
+		human_row.add_child(bottom_right)
+		_rival_areas.append(bottom_right)
 
 	else:
 		rivals_row.show()
@@ -317,11 +334,22 @@ func _build_rival_views() -> void:
 			view.inspect_requested.connect(_show_rival_board)
 			_rival_views[player] = view
 
-func _make_rival_player_area() -> PlayerAreaView:
+# Rival sitting across the table — hand fan at the top.
+func _make_rival_top_area() -> PlayerAreaView:
 	var view: PlayerAreaView = PlayerAreaScene.instantiate()
-	view.show_hand = false
+	view.show_hand      = false
+	view.hand_at_bottom = false
 	view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	view.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	view.size_flags_vertical   = Control.SIZE_EXPAND_FILL
+	return view
+
+# Rival sitting beside the human (bottom row) — hand fan at the bottom, face-down.
+func _make_rival_bottom_area() -> PlayerAreaView:
+	var view: PlayerAreaView = PlayerAreaScene.instantiate()
+	view.show_hand      = false
+	view.hand_at_bottom = true
+	view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	view.size_flags_vertical   = Control.SIZE_EXPAND_FILL
 	return view
 
 # ── Rival board overlay ───────────────────────────────────────────────────────
