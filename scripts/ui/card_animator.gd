@@ -4,9 +4,10 @@ extends CanvasLayer
 const CardScene := preload("res://escenas/ui/card/card.tscn")
 
 # Flies a ghost CardView from src_pos to dst_pos. Awaitable.
+# Returns the ghost node at the destination — caller is responsible for freeing it.
 # Positions are in global screen coordinates.
 func animate_move(card: Card, src_pos: Vector2, dst_pos: Vector2,
-		duration: float) -> void:
+		duration: float) -> CardView:
 	var cv: CardView = CardScene.instantiate()
 	cv.card_data = card
 	cv.custom_minimum_size = Vector2(PlayerAreaView.CARD_W, PlayerAreaView.CARD_H)
@@ -19,4 +20,4 @@ func animate_move(card: Card, src_pos: Vector2, dst_pos: Vector2,
 	tween.set_trans(Tween.TRANS_CUBIC)
 	tween.tween_property(cv, "position", dst_pos, duration)
 	await tween.finished
-	cv.queue_free()
+	return cv

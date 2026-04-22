@@ -189,15 +189,23 @@ func _on_move_about_to_play(event: CardMoveEvent) -> void:
 		dst_pos = src_area.board_container.get_global_rect().get_center() \
 				if src_area != null else get_viewport_rect().size / 2
 
-	await _card_animator.animate_move(event.card, src_pos, dst_pos, duration)
+	var ghost := await _card_animator.animate_move(event.card, src_pos, dst_pos, duration)
 
-	# End-of-turn: briefly flash the board zone green to confirm card placement
+	# Notify before fading — state updates and real card appears underneath the ghost.
+	turn_controller.notify_animation_done()
+
+	# Crossfade: ghost dissolves over the now-visible real card.
+	var fade := create_tween()
+	fade.set_ease(Tween.EASE_IN)
+	fade.tween_property(ghost, "modulate:a", 0.0, 0.15)
+	await fade.finished
+	ghost.queue_free()
+
+	# End-of-turn: briefly flash the board zone green to confirm card placement.
 	if event.dest_type == CardMoveEvent.DestType.BOARD and src_area != null:
 		src_area.board_container.modulate = Color(0.8, 1.2, 0.8, 1.0)
 		await get_tree().create_timer(0.4).timeout
 		src_area.board_container.modulate = Color(1, 1, 1, 1)
-
-	turn_controller.notify_animation_done()
 
 func _get_player_area(player_index: int) -> PlayerAreaView:
 	if player_index == 0:
