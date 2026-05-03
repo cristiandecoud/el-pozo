@@ -18,41 +18,47 @@ layout_mode = 2
 size_flags_horizontal = 4
 theme_override_constants/separation = 16
 
-[node name="Well" type="VBoxContainer" parent="WellAndBoard"]
+[node name="WellPanel" type="PanelContainer" parent="WellAndBoard"]
+layout_mode = 2
+
+[node name="Well" type="VBoxContainer" parent="WellAndBoard/WellPanel"]
 layout_mode = 2
 theme_override_constants/separation = 2
 
-[node name="WellTitle" type="Label" parent="WellAndBoard/Well"]
+[node name="WellTitle" type="Label" parent="WellAndBoard/WellPanel/Well"]
 layout_mode = 2
 text = "WELL"
 theme_override_font_sizes/font_size = 20
 theme_override_colors/font_color = Color(0.96078, 0.77255, 0.09412, 1)
 
-[node name="WellCount" type="Label" parent="WellAndBoard/Well"]
+[node name="WellCount" type="Label" parent="WellAndBoard/WellPanel/Well"]
 layout_mode = 2
 text = "15 cards"
 theme_override_font_sizes/font_size = 20
 theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
 
-[node name="WellTopSlot" type="Control" parent="WellAndBoard/Well"]
+[node name="WellTopSlot" type="Control" parent="WellAndBoard/WellPanel/Well"]
 layout_mode = 2
 custom_minimum_size = Vector2(200, 290)
 
 [node name="VSep" type="VSeparator" parent="WellAndBoard"]
 layout_mode = 2
 
-[node name="BoardZone" type="VBoxContainer" parent="WellAndBoard"]
+[node name="BoardZone" type="PanelContainer" parent="WellAndBoard"]
 layout_mode = 2
 size_flags_horizontal = 3
+
+[node name="BoardContent" type="VBoxContainer" parent="WellAndBoard/BoardZone"]
+layout_mode = 2
 theme_override_constants/separation = 2
 
-[node name="BoardTitle" type="Label" parent="WellAndBoard/BoardZone"]
+[node name="BoardTitle" type="Label" parent="WellAndBoard/BoardZone/BoardContent"]
 layout_mode = 2
 text = "BOARD"
 theme_override_font_sizes/font_size = 20
 theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
 
-[node name="Board" type="HBoxContainer" parent="WellAndBoard/BoardZone"]
+[node name="Board" type="HBoxContainer" parent="WellAndBoard/BoardZone/BoardContent"]
 layout_mode = 2
 theme_override_constants/separation = 4
 

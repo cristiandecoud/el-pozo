@@ -91,6 +91,27 @@ Nodo UI con el área completa de un jugador: pozo, tablero y mano. Emite `card_s
 ### `HUDView`
 Nodo UI con el log de acciones, estado del turno y botón de fin de turno. Emite `end_turn_requested`. Archivo: `scripts/ui/hud_view.gd`.
 
+### `RivalAreaView`
+Vista compacta de un jugador rival: nombre en su color, carta tapa del pozo, conteo de mano y tops del tablero. Al hacer click abre `RivalBoardOverlay`. Archivo: `scripts/ui/rival_area_view.gd`.
+
+### `RivalBoardOverlay`
+Overlay que muestra el tablero completo de un rival al hacer click en su `RivalAreaView`. Archivo: `scripts/ui/rival_board_overlay.gd`.
+
+### `CardPresentation`
+ViewModel (RefCounted) que separa los datos de renderizado de `Card`. Encapsula los tres estados posibles (`EMPTY`, `FACE_DOWN`, `FACE_UP`) con los textos y colores correspondientes. Usado por `CardView`. Archivo: `scripts/ui/card_presentation.gd`.
+
+### `CardMoveEvent`
+Descriptor de datos (RefCounted) que representa cualquier movimiento de carta: jugador origen, fuente (`HAND`/`WELL`/`BOARD`), índice, destino y la carta. Usado por `BotPlayer`, `TurnController` y la señal `card_move_happened`. Archivo: `scripts/data/card_move_event.gd`.
+
+### `CardAnimator`
+Nodo hijo de la escena de juego. Anima el vuelo físico de una carta desde una posición global hasta otra (ghost `CardView` + tween). Método principal: `animate_move(card, src_pos, dst_pos, duration)`. Archivo: `scripts/ui/card_animator.gd`.
+
+### `TurnController`
+Orquesta la ejecución de los turnos: humano (espera input) y bot (loop async con animaciones y delays). Emite `move_about_to_play` y `animation_finished`. Archivo: `scripts/logic/turn_controller.gd`.
+
+### `SaveData`
+AutoLoad singleton. Persiste configuración y estadísticas en `user://save_data.json`. Expone `get(key)` y `set(key, value)`. Archivo: `scripts/data/save_data.gd`.
+
 ---
 
 ## Constantes clave

@@ -41,9 +41,11 @@ var _new_col_idx: int = -1
 var _current_player_board: Array = []
 
 @onready var name_label: Label      = $PlayerName
-@onready var well_count: Label      = $WellAndBoard/Well/WellCount
-@onready var well_top_slot: Control = $WellAndBoard/Well/WellTopSlot
-@onready var board_container: HBoxContainer = $WellAndBoard/BoardZone/Board
+@onready var well_panel: PanelContainer     = $WellAndBoard/WellPanel
+@onready var well_count: Label              = $WellAndBoard/WellPanel/Well/WellCount
+@onready var well_top_slot: Control         = $WellAndBoard/WellPanel/Well/WellTopSlot
+@onready var board_zone: PanelContainer     = $WellAndBoard/BoardZone
+@onready var board_container: HBoxContainer = $WellAndBoard/BoardZone/BoardContent/Board
 @onready var hand_container: Control        = $HandZone/Hand
 @onready var hand_zone: VBoxContainer       = $HandZone
 
@@ -77,6 +79,26 @@ func _ready() -> void:
 	_style_well.set_content_margin_all(6)
 	# Clip columns so they never push the layout beyond available height
 	board_container.clip_children = CanvasItem.CLIP_CHILDREN_ONLY
+	_apply_well_panel_style()
+	_apply_board_zone_style()
+
+func _apply_well_panel_style() -> void:
+	var s := StyleBoxFlat.new()
+	s.bg_color = Color("#1C1408")
+	s.set_border_width_all(2)
+	s.border_color = Color("#C8851A")
+	s.set_corner_radius_all(8)
+	s.set_content_margin_all(8)
+	well_panel.add_theme_stylebox_override("panel", s)
+
+func _apply_board_zone_style() -> void:
+	var s := StyleBoxFlat.new()
+	s.bg_color = Color("#0D1520")
+	s.set_border_width_all(2)
+	s.border_color = Color("#3A6A9A")
+	s.set_corner_radius_all(8)
+	s.set_content_margin_all(8)
+	board_zone.add_theme_stylebox_override("panel", s)
 
 # Main entry point — called by game.gd in _refresh_all().
 func refresh(player: Player) -> void:
