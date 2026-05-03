@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Midnight Lounge - Card Royale</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@700&amp;family=Manrope:wght@400;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-fixed": "#141b2b",
+                    "background": "#101415",
+                    "surface-bright": "#363a3b",
+                    "inverse-surface": "#e0e3e5",
+                    "tertiary-container": "#acb3c7",
+                    "primary-fixed-dim": "#e9c349",
+                    "outline": "#99907c",
+                    "on-primary-fixed-variant": "#574500",
+                    "on-secondary-fixed-variant": "#0b513d",
+                    "secondary-fixed": "#b0f0d6",
+                    "on-tertiary": "#293040",
+                    "on-background": "#e0e3e5",
+                    "inverse-on-surface": "#2d3133",
+                    "tertiary-fixed": "#dce2f7",
+                    "tertiary-fixed-dim": "#c0c6db",
+                    "inverse-primary": "#735c00",
+                    "surface-container-lowest": "#0b0f10",
+                    "on-primary-fixed": "#241a00",
+                    "surface-tint": "#e9c349",
+                    "primary-container": "#d4af37",
+                    "on-error": "#690005",
+                    "primary-fixed": "#ffe088",
+                    "secondary": "#95d3ba",
+                    "tertiary": "#c8cee3",
+                    "surface-container-high": "#272a2c",
+                    "on-primary": "#3c2f00",
+                    "on-tertiary-fixed-variant": "#404758",
+                    "on-surface": "#e0e3e5",
+                    "on-secondary-container": "#83c2a9",
+                    "secondary-fixed-dim": "#95d3ba",
+                    "on-secondary-fixed": "#002117",
+                    "surface-dim": "#101415",
+                    "on-secondary": "#003829",
+                    "surface": "#101415",
+                    "error-container": "#93000a",
+                    "error": "#ffb4ab",
+                    "on-surface-variant": "#d0c5af",
+                    "secondary-container": "#0b513d",
+                    "on-tertiary-container": "#3e4556",
+                    "outline-variant": "#4d4635",
+                    "on-primary-container": "#554300",
+                    "surface-container-low": "#191c1e",
+                    "surface-container": "#1d2022",
+                    "surface-variant": "#323537",
+                    "primary": "#f2ca50",
+                    "on-error-container": "#ffdad6",
+                    "surface-container-highest": "#323537"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "card-overlap": "-40px",
+                    "panel-padding": "16px",
+                    "gutter-md": "24px",
+                    "margin-edge": "32px",
+                    "unit": "4px"
+            },
+            "fontFamily": {
+                    "card-value": ["Noto Serif"],
+                    "player-name": ["Manrope"],
+                    "body-md": ["Manrope"],
+                    "button-text": ["Manrope"],
+                    "label-caps": ["Manrope"]
+            },
+            "fontSize": {
+                    "card-value": ["24px", {"lineHeight": "24px", "fontWeight": "700"}],
+                    "player-name": ["16px", {"lineHeight": "24px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "button-text": ["14px", {"lineHeight": "20px", "fontWeight": "700"}],
+                    "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.1em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>body {
+    background-color: #064e3b;
+    background-image: radial-gradient(circle at center, #065f46 0%, #064e3b 100%);
+    overflow: hidden;
+    height: 100vh
+    }
+.felt-texture {
+    background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuDyChUrcKkCb3pHZt5s_kAYMYn7JS-Pj7efUooSVceMGXzOksiCsTH2TxYS4Y1UUkFjZ89rSR1fpYOq4hA58RDHHDh_dqMvqUYP0VmpWCXCQiHLoJx9Fb_NKRbQlokdAQB4wa3jxn22tRKPwHM-BOtezmnrrCawE8M6cT1aene5E8n7VyRMoDtbfoghdhnHdyx3ja4qSJYoz1E_tM1zBnFbfBouIarM2Cgq6dM5Z5JbKpoGWp6BtVG-tK92d6TJ_j-JLEEvliYk6Sc);
+    background-repeat: repeat
+    }
+.card-shadow {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3)
+    }
+.glass-panel {
+    background: rgba(17, 24, 39, 0.7);
+    backdrop-filter: blur(20px)
+    }
+.card-fan-container > div:not(:first-child) {
+    margin-left: -60px
+    }
+.material-symbols-outlined {
+    font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24
+    }</style>
+</head>
+<body class="felt-texture font-body-md text-on-background">
+<!-- Top Navigation Shell -->
+<header class="flex justify-between items-center px-6 py-3 w-full bg-gray-900/70 backdrop-blur-2xl text-yellow-600 dark:text-[#d4af37] font-serif text-lg tracking-wide border-b border-[#d4af37]/20 shadow-2xl fixed top-0 z-50">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined cursor-pointer hover:bg-white/10 transition-colors p-2 rounded-full">menu</span>
+<h1 class="text-xl font-bold text-[#d4af37] italic">Midnight Lounge</h1>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex gap-4">
+<span class="text-[#d4af37] font-bold cursor-pointer">Live Play</span>
+<span class="text-gray-400 cursor-pointer hover:bg-white/10 transition-colors px-2 rounded">Tournaments</span>
+</div>
+<div class="flex gap-3">
+<span class="material-symbols-outlined cursor-pointer hover:bg-white/10 p-2 rounded-full">pause</span>
+<span class="material-symbols-outlined cursor-pointer hover:bg-white/10 p-2 rounded-full">settings</span>
+</div>
+</div>
+</header>
+<main class="h-screen w-full pt-16 pb-20 px-8 flex flex-col justify-between">
+<!-- Top Section: Opponents & Deck -->
+<div class="flex justify-between items-start w-full">
+<!-- Deck -->
+<div class="flex flex-col items-center gap-2">
+<div class="relative w-24 h-36 bg-surface-container-highest rounded-lg border-2 border-[#d4af37]/30 shadow-2xl flex items-center justify-center transform rotate-[-5deg]">
+<div class="absolute inset-2 border border-[#d4af37]/10 rounded flex items-center justify-center bg-[#001e3c]">
+<span class="font-card-value text-card-value text-[#d4af37]">172</span>
+</div>
+</div>
+<span class="font-label-caps text-label-caps text-[#d4af37] uppercase">The Deck</span>
+</div>
+<!-- Opponents -->
+<div class="flex gap-12">
+<!-- Bot 1 -->
+<div class="flex flex-col items-center gap-4">
+<div class="flex items-center gap-2 px-4 py-1 bg-surface-container-low/80 rounded-full border border-outline-variant">
+<div class="w-2 h-2 rounded-full bg-gray-500"></div>
+<span class="font-player-name text-player-name">Bot 1</span>
+</div>
+<div class="flex gap-4">
+<div class="flex flex-col items-center gap-2">
+<div class="w-16 h-24 border-2 border-dashed border-[#d4af37]/20 rounded-lg flex items-center justify-center">
+<span class="font-label-caps text-[10px] text-[#d4af37]/40 uppercase">Well</span>
+</div>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="w-16 h-24 bg-red-900 rounded-lg border border-[#d4af37]/40 flex items-center justify-center card-shadow">
+<span class="material-symbols-outlined text-[#d4af37]" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<span class="font-label-caps text-[10px] text-[#d4af37] uppercase">Board</span>
+</div>
+</div>
+</div>
+<!-- Bot 2 -->
+<div class="flex flex-col items-center gap-4">
+<div class="flex items-center gap-2 px-4 py-1 bg-surface-container-low/80 rounded-full border border-outline-variant">
+<div class="w-2 h-2 rounded-full bg-gray-500"></div>
+<span class="font-player-name text-player-name">Bot 2</span>
+</div>
+<div class="flex gap-4">
+<div class="flex flex-col items-center gap-2">
+<div class="w-16 h-24 border-2 border-dashed border-[#d4af37]/20 rounded-lg flex items-center justify-center">
+<span class="font-label-caps text-[10px] text-[#d4af37]/40 uppercase">Well</span>
+</div>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="w-16 h-24 bg-red-900 rounded-lg border border-[#d4af37]/40 flex items-center justify-center card-shadow">
+<span class="material-symbols-outlined text-[#d4af37]" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<span class="font-label-caps text-[10px] text-[#d4af37] uppercase">Board</span>
+</div>
+</div>
+</div>
+</div>
+<div class="w-24"></div> <!-- Spacer for symmetry -->
+</div>
+<!-- Center: Strategic Board Slots -->
+<div class="flex justify-center items-center w-full"><div class="flex justify-center items-center w-full">
+<div class="bg-black/60 backdrop-blur-xl p-8 rounded-2xl border border-[#d4af37]/30 flex gap-6 shadow-[0_20px_50px_rgba(0,0,0,0.7)]">
+<!-- Slot 1: Active 3 of Clubs -->
+<div class="w-28 h-40 bg-white rounded-lg p-2 flex flex-col justify-between items-start card-shadow transform hover:scale-105 transition-transform cursor-pointer border-2 border-[#d4af37]">
+<div class="flex flex-col items-center">
+<span class="font-card-value text-card-value text-background">3</span>
+<span class="material-symbols-outlined text-background text-lg" style="font-variation-settings: 'FILL' 1;">potted_plant</span>
+</div>
+<div class="self-center">
+<span class="material-symbols-outlined text-5xl text-background">potted_plant</span>
+</div>
+<div class="flex flex-col items-center self-end rotate-180">
+<span class="font-card-value text-card-value text-background">3</span>
+<span class="material-symbols-outlined text-background text-lg" style="font-variation-settings: 'FILL' 1;">potted_plant</span>
+</div>
+</div>
+<!-- Slot 2: Empty -->
+<div class="w-28 h-40 border-2 border-dashed border-[#d4af37]/20 rounded-lg flex flex-col items-center justify-center gap-2 bg-white/5">
+<span class="font-label-caps text-label-caps text-[#d4af37]/60">Needs:</span>
+<span class="font-card-value text-card-value text-[#d4af37]/30">A</span>
+</div>
+<!-- Slot 3: Empty -->
+<div class="w-28 h-40 border-2 border-dashed border-[#d4af37]/20 rounded-lg flex flex-col items-center justify-center gap-2 bg-white/5">
+<span class="font-label-caps text-label-caps text-[#d4af37]/60">Needs:</span>
+<span class="font-card-value text-card-value text-[#d4af37]/30">A</span>
+</div>
+<!-- Slot 4: Empty -->
+<div class="w-28 h-40 border-2 border-dashed border-[#d4af37]/20 rounded-lg flex flex-col items-center justify-center gap-2 bg-white/5">
+<span class="font-label-caps text-label-caps text-[#d4af37]/60">Needs:</span>
+<span class="font-card-value text-card-value text-[#d4af37]/30">A</span>
+</div>
+</div>
+</div></div>
+<!-- Bottom: Player and Bot 3 Section -->
+<div class="flex justify-between items-end w-full mb-8">
+<!-- Player Area (cristian) -->
+<div class="flex flex-col items-start gap-4"><div class="flex flex-col items-start gap-4">
+<div class="flex items-center gap-2 px-4 py-1.5 bg-primary-container text-on-primary-container rounded-full border border-[#d4af37] shadow-[0_0_20px_rgba(212,175,55,0.3)]">
+<div class="w-2 h-2 rounded-full bg-white animate-pulse"></div>
+<span class="font-player-name text-player-name uppercase tracking-wider">cristian</span>
+</div>
+<div class="flex gap-4">
+<div class="flex flex-col items-center gap-2">
+<div class="w-20 h-28 bg-white rounded-lg p-2 flex flex-col justify-between items-start card-shadow border border-gray-200">
+<div class="flex flex-col items-center">
+<span class="font-card-value text-[18px] leading-tight text-error">8</span>
+<span class="material-symbols-outlined text-error text-xs" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</div>
+<div class="self-center">
+<span class="material-symbols-outlined text-3xl text-error">favorite</span>
+</div>
+</div>
+<span class="font-label-caps text-[10px] text-[#d4af37] uppercase opacity-70">Well</span>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="w-20 h-28 border-2 border-dashed border-[#d4af37]/30 rounded-lg flex items-center justify-center bg-black/20">
+<span class="material-symbols-outlined text-[#d4af37]/30 text-3xl">add</span>
+</div>
+<span class="font-label-caps text-[10px] text-[#d4af37] uppercase opacity-70">Board</span>
+</div>
+</div>
+</div></div>
+<!-- Current Hand -->
+<div class="flex flex-col items-center gap-4">
+<div class="flex card-fan-container items-end pb-4">
+<!-- 8 -->
+<div class="w-28 h-40 bg-white rounded-lg p-3 flex flex-col justify-between items-start card-shadow border border-gray-200 transform hover:-translate-y-6 transition-all duration-300 cursor-pointer">
+<span class="font-card-value text-card-value text-background">8</span>
+<div class="self-center"><span class="material-symbols-outlined text-4xl text-background">article</span></div>
+<span class="font-card-value text-card-value text-background self-end rotate-180">8</span>
+</div>
+<!-- 9 -->
+<div class="w-28 h-40 bg-white rounded-lg p-3 flex flex-col justify-between items-start card-shadow border border-gray-200 transform hover:-translate-y-6 transition-all duration-300 cursor-pointer">
+<span class="font-card-value text-card-value text-error">9</span>
+<div class="self-center"><span class="material-symbols-outlined text-4xl text-error">article</span></div>
+<span class="font-card-value text-card-value text-error self-end rotate-180">9</span>
+</div>
+<!-- 2 -->
+<div class="w-28 h-40 bg-white rounded-lg p-3 flex flex-col justify-between items-start card-shadow border border-gray-200 transform hover:-translate-y-6 transition-all duration-300 cursor-pointer">
+<span class="font-card-value text-card-value text-background">2</span>
+<div class="self-center"><span class="material-symbols-outlined text-4xl text-background">article</span></div>
+<span class="font-card-value text-card-value text-background self-end rotate-180">2</span>
+</div>
+<!-- 2 -->
+<div class="w-28 h-40 bg-white rounded-lg p-3 flex flex-col justify-between items-start card-shadow border border-gray-200 transform hover:-translate-y-6 transition-all duration-300 cursor-pointer">
+<span class="font-card-value text-card-value text-error">2</span>
+<div class="self-center"><span class="material-symbols-outlined text-4xl text-error">article</span></div>
+<span class="font-card-value text-card-value text-error self-end rotate-180">2</span>
+</div>
+<!-- J -->
+<div class="w-28 h-40 bg-white rounded-lg p-3 flex flex-col justify-between items-start card-shadow border border-gray-200 transform hover:-translate-y-6 transition-all duration-300 cursor-pointer">
+<span class="font-card-value text-card-value text-background">J</span>
+<div class="self-center"><span class="material-symbols-outlined text-4xl text-background">article</span></div>
+<span class="font-card-value text-card-value text-background self-end rotate-180">J</span>
+</div>
+</div>
+</div>
+<!-- Bot 3 Area -->
+<div class="flex flex-col items-end gap-4"><div class="flex flex-col items-end gap-4">
+<div class="flex items-center gap-2 px-4 py-1.5 bg-surface-container-low/80 rounded-full border border-outline-variant">
+<div class="w-2 h-2 rounded-full bg-gray-500"></div>
+<span class="font-player-name text-player-name">Bot 3</span>
+</div>
+<div class="flex gap-4">
+<div class="flex flex-col items-center gap-2">
+<div class="w-20 h-28 bg-white rounded-lg p-2 flex flex-col justify-between items-start card-shadow border border-gray-200">
+<div class="flex flex-col items-center">
+<span class="font-card-value text-[18px] leading-tight text-error">5</span>
+<span class="material-symbols-outlined text-error text-xs" style="font-variation-settings: 'FILL' 1;">diamond</span>
+</div>
+<div class="self-center">
+<span class="material-symbols-outlined text-3xl text-error">diamond</span>
+</div>
+</div>
+<span class="font-label-caps text-[10px] text-[#d4af37] uppercase opacity-70">Well</span>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="w-20 h-28 bg-white rounded-lg p-2 flex flex-col justify-between items-start card-shadow border border-gray-200">
+<div class="flex flex-col items-center">
+<span class="font-card-value text-[18px] leading-tight text-background">Q</span>
+<span class="material-symbols-outlined text-background text-xs" style="font-variation-settings: 'FILL' 1;">spa</span>
+</div>
+<div class="self-center">
+<span class="material-symbols-outlined text-3xl text-background">spa</span>
+</div>
+</div>
+<span class="font-label-caps text-[10px] text-[#d4af37] uppercase opacity-70">Board</span>
+</div>
+</div>
+</div></div>
+</div>
+</main>
+<!-- Footer Bar Shell -->
+<footer class="fixed bottom-0 left-0 w-full h-20 flex justify-between items-center px-8 pb-safe bg-gray-900/80 backdrop-blur-3xl z-50 border-t border-[#d4af37]/30 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+<div class="flex items-center gap-4">
+<div class="flex flex-col items-center justify-center text-[#d4af37] drop-shadow-[0_0_8px_rgba(212,175,55,0.6)]"><div class="flex items-center gap-3 bg-primary/10 px-4 py-2 rounded-full border border-primary/20">
+<span class="material-symbols-outlined text-primary text-2xl animate-pulse" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+<div class="flex flex-col">
+<span class="font-serif text-[10px] uppercase tracking-[0.2em] text-[#d4af37]/60 leading-none">Status</span>
+<span class="font-serif text-sm font-bold text-primary uppercase tracking-widest">Your Turn</span>
+</div>
+</div></div>
+<div class="h-8 w-px bg-[#d4af37]/20 mx-4"></div>
+<div class="flex gap-8">
+<div class="flex flex-col items-center justify-center text-gray-500 hover:text-[#d4af37] transition-all cursor-pointer">
+<span class="material-symbols-outlined">style</span>
+<span class="font-serif text-xs uppercase tracking-widest">Hand</span>
+</div>
+<div class="flex flex-col items-center justify-center text-gray-500 hover:text-[#d4af37] transition-all cursor-pointer">
+<span class="material-symbols-outlined">query_stats</span>
+<span class="font-serif text-xs uppercase tracking-widest">Stats</span>
+</div>
+<div class="flex flex-col items-center justify-center text-gray-500 hover:text-[#d4af37] transition-all cursor-pointer">
+<span class="material-symbols-outlined">history</span>
+<span class="font-serif text-xs uppercase tracking-widest">Log</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="bg-[#d4af37] text-background px-8 py-3 rounded-full font-button-text text-button-text uppercase tracking-widest flex items-center gap-2 active:scale-95 transition-transform shadow-lg hover:brightness-110">
+                End Turn
+            </button>
+<button class="w-12 h-12 rounded-full border border-[#d4af37]/40 flex items-center justify-center text-[#d4af37] hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined">pause</span>
+</button>
+</div>
+</footer>
+<!-- Background Images / Context -->
+<div class="fixed inset-0 pointer-events-none -z-10 opacity-30">
+<img class="w-full h-full object-cover" data-alt="A macro photograph of high-end billiard or casino table felt in a deep emerald green shade. The texture is rich and tactile, showing the fine fibers of the wool fabric. The lighting is moody and low-key, with a soft vignette darkening the edges of the frame. The overall atmosphere is luxurious and exclusive, suggesting a high-stakes midnight card game lounge." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD7me7V5007X7Y632zKd_NZbi82VLQ548RF9pB6VNeY3sM_szL5T_KXzlSnoZUf0_t6SOp1SOEe83rQR7IyQDNBNZV8yDGXoeIYD-kXQBbuH2ta3nE8nlOK1FDbI0g4SJf8vJzFBekV0JUP-IqnwEj-eFcGVSvhJNPXBN78_iq5qkSDDm9vKZ41AX1YKRgE7DtT56nln6bP-xoqK8bvX0noySlkfkilsVfpHLIi4KBCm5aWZR3x_KYmmZo-Lk8ms1nxomLAFHaOEOw"/>
+</div>
+</body></html>
